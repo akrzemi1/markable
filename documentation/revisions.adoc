@@ -26,3 +26,8 @@ Initial version.
 
  * Addded concepts support. Enabled when macro `AK_TOOLKIT_WITH_CONCEPTS` is defined prior to the inclusion of the header file.
  * Added assignment functions for value and storage value.
+   
+## Version 1.1.0
+
+ * Provided equality comparisons as policy.
+   

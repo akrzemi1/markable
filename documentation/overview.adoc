@@ -58,8 +58,8 @@ or by providing it explicitly.
 
 It is not possible to change the stored value through function `value()`: it returns a non-mutable reference or value (based on the policy).
 
-There are no relational operations provided, as it is not obvious how a no-value should compare against other values.
-If you want to compare them, you need to provide a custom comparator, where you explicitly state how the marked state is treated.
+There are no relational operations provided by default, as it is not obvious how a no-value should compare against other values.
+If you want to compare them, you need to provide a custom comparator, where you explicitly state how the marked state is treated, or you can select comparison policy in the second template parameter. 
 
 There is no way to 'reset' the optional object other than to move-assign a new value:
 
@@ -353,6 +353,32 @@ Using `markable_dual_storage_type` requires that the dual storage has a `noexcep
 
 If either of the functions is not `noexcept` in your case but you still want to use the policy and take the risk that neither of the two functions will ever throw, you can use class template `markable_dual_storage_type_unsafe` instead. This type does not enforce `noexcept` statically, but will call `std::terminate` should any of the two functions throw when performing operations on `markable` in critical places.
 
+
+## Relational operators
+
+By default `markable` objects are not equally comparable. In order to make them comparable, you have to first decide how you want the mark values (there can be more than one mark value) to compare relative to other values. If you want any marked value to compare equal to any other marked value and compare unequal to any non-marked value, use comparison policy `cmp_by_value_eq`:
+
+```c++
+struct mark_negative : markable_type<int>
+{
+  static bool is_marked_value(const int& v) { return v < 0; } // any negative value is marked
+  static int marked_value() { return -1; }
+}; 
+
+using opt_nonnegative_int = markable<mark_negative, cmp_by_value_eq>;
+assert (opt_nonnegative_int{} == opt_nonnegative_int{-2});
+```
+
+If you want to compare `markable` objects by simply comparing their storage values (which is likely faster, but different marked values compare unequal), use comparoison policy `cmp_by_storage`:
+
+```c++
+using opt_nonnegative_int = markable<mark_negative, cmp_by_storage>;
+assert (opt_nonnegative_int{} != opt_nonnegative_int{-2});
+```
+
+If you do not want your `markable` types to be comparable, do not provide the second parameter, or use comparison policy `cmp_none`.
+
+
 ## Opaque-typedefed markables
 
 Because `markable` uses policies, you can get the opaque typedef for your markable types for free.
@@ -405,7 +431,7 @@ In a way, `boost::optional<T>` can be thought as link:http://www.boost.org/doc/l
 
 ### Expressiveness vs non-ambiguity
 
-`markable` has a minimalistic interface: this is also to avoid any surprises. As a cost it is less expressive and convenient. There are no implicit conversions, no overloaded operators; unlike `boost::optional`, it does not have `operator==`: you have to provide your own comparator and decide yourself how you want to compare the no-value states.
+`markable` has a minimalistic interface: this is also to avoid any surprises. As a cost it is less expressive and convenient. There are no implicit conversions, no overloaded operators; unlike `boost::optional`, it does not have `operator==` by default: you have to specify a comparison policy and decide yourself how you want to compare the no-value states.
 
 
 ## Intended use

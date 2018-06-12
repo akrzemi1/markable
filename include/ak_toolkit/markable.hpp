@@ -411,8 +411,51 @@ struct markable_dual_storage_type : markable_dual_storage_type_unsafe<MPT, T, RE
   typedef void is_safe_dual_storage_mark_policy;
 };
 
-template <AK_TOOLKIT_MARK_POLICY MP>
-class markable
+template <typename Markable, typename MP>
+struct cmp_none {};
+
+template <typename Markable, typename MP>
+struct cmp_by_storage
+{
+  friend auto operator==(const cmp_by_storage& l, const cmp_by_storage& r)
+    -> decltype(::std::declval<const typename MP::storage_type&>() ==
+	        ::std::declval<const typename MP::storage_type&>())
+  { return l.m().storage_value() == r.m().storage_value(); }
+
+  friend auto operator!=(const cmp_by_storage& l, const cmp_by_storage& r)
+    -> decltype(::std::declval<const typename MP::storage_type&>() !=
+	        ::std::declval<const typename MP::storage_type&>())
+  { return l.m().storage_value() != r.m().storage_value(); }
+
+private:
+  const Markable& m() const noexcept { return static_cast<const Markable&>(*this); }
+};
+
+template <typename Markable, typename MP>
+struct cmp_by_value_eq
+{
+  friend auto operator==(const cmp_by_value_eq& l, const cmp_by_value_eq& r)
+    -> decltype(::std::declval<typename MP::reference_type>() ==
+	        ::std::declval<typename MP::reference_type>())
+  {
+    return !l.m().has_value() ? !r.m().has_value() : r.m().has_value() && l.m().value() == r.m().value();
+  }
+
+  friend auto operator!=(const cmp_by_value_eq& l, const cmp_by_value_eq& r)
+    -> decltype(::std::declval<typename MP::reference_type>() !=
+	        ::std::declval<typename MP::reference_type>())
+  {
+    return !l.m().has_value() ? r.m().has_value() : !r.m().has_value() || r.m().value() != l.m().value();
+  }
+
+private:
+  const Markable& m() const noexcept { return static_cast<const Markable&>(*this); }
+};
+
+
+
+template <typename MP, template <typename, typename> class CP = cmp_none>
+class markable : public CP<markable<MP, CP>, MP>
 {
   // The following assert is only in case a safe dual storage is used.
   // It then checks if the value_type is nothrow move constructible.
@@ -471,6 +514,10 @@ using markable_ns::mark_value_init;
 using markable_ns::mark_optional;
 using markable_ns::mark_stl_empty;
 using markable_ns::mark_enum;
+using markable_ns::cmp_none;
+using markable_ns::cmp_by_storage;
+using markable_ns::cmp_by_value_eq;
+
 
 # if defined AK_TOOLKIT_WITH_CONCEPTS
 

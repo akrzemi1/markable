@@ -463,6 +463,51 @@ void test_mark_dual_storage()
 void test_mark_dual_storage_1() { test_mark_dual_storage<range, mark_range>(); }
 void test_mark_dual_storage_2() { test_mark_dual_storage<range2, mark_range2>(); }
 
+struct mark_negative : markable_type<int>
+{               
+  static int marked_value() { return -2; }
+  static bool is_marked_value(const int& v) { return v < 0; }
+};
+
+void test_comparison()
+{
+  {
+  typedef markable<mark_int<int, 0>, cmp_by_storage> opt_int;
+  opt_int n1 {-1}, x{}, p1 {+1};
+  assert (n1 != x);
+  assert (x != p1);
+  assert (n1 != p1);
+  assert (n1 == n1);
+  assert (p1 == p1);
+  assert (x == x);
+  }
+  {
+    typedef markable<mark_negative, cmp_by_storage> opt_int;
+    opt_int x{}, n1{-1}, _0 {0}, p1{+1};
+    assert (x != n1);
+    assert (n1 != x); // both marked, but different representation
+    assert (n1 != _0);
+    assert (_0 != p1);
+    assert (p1 != _0);
+    assert (x == x);
+    assert (n1 == n1); 
+    assert (p1 == p1); 
+    assert (_0 == _0);
+  }
+  {
+    typedef markable<mark_negative, cmp_by_value_eq> opt_int;
+    opt_int x{}, n1{-1}, _0 {0}, p1{+1};
+    assert (x == n1);
+    assert (n1 == x); // both marked => equal (regardless of representation)
+    assert (n1 != _0);
+    assert (_0 != p1);
+    assert (p1 != _0);
+    assert (x == x);
+    assert (n1 == n1); 
+    assert (p1 == p1); 
+    assert (_0 == _0);
+  }
+}
 
 /*
 class Date
@@ -615,6 +660,7 @@ int main()
   test_mark_value_init();
   test_mark_stl_empty();
   test_mark_enum();
+  test_comparison();
 
 #if defined AK_TOOLKIT_USING_BOOST
   test_optional_as_storage();

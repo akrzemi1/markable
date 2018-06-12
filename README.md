@@ -1,4 +1,4 @@
-# markable 1.0.2 [![Build Status](https://travis-ci.org/akrzemi1/markable.svg?branch=master)](https://travis-ci.org/akrzemi1/markable)
+# markable 1.1.0 [![Build Status](https://travis-ci.org/akrzemi1/markable.svg?branch=master)](https://travis-ci.org/akrzemi1/markable)
 An alternative to `boost::optional<T>` which does not store an additional `bool` flag,
 but encodes the 'empty' state inside `T` using a special indicated value.
 
