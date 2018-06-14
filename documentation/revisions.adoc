@@ -30,4 +30,3 @@ Initial version.
 ## Version 1.1.0
 
  * Provided equality comparisons as policy.
-   
