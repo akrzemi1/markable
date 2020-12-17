@@ -454,7 +454,7 @@ private:
 
 
 
-template <typename MP, template <typename, typename> class CP = cmp_none>
+template <AK_TOOLKIT_MARK_POLICY MP, template <typename, typename> class CP = cmp_none>
 class markable : public CP<markable<MP, CP>, MP>
 {
   // The following assert is only in case a safe dual storage is used.

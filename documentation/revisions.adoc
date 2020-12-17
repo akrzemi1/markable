@@ -15,7 +15,7 @@ Initial version.
    but when using dual storage the two may be different. The former is the type for which you define
    the mark value, while the latter is the type used for storage. See documentation for more details.
 
- * Removed the tag parameter to `markable` as it was observed that the same effect can be acheived
+ * Removed the tag parameter to `markable` as it was observed that the same effect can be achieved
    by inheriting from a mark policy rather than using it directly. See the documentation for details.
 
 ## Version 1.0.1
