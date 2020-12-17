@@ -314,7 +314,7 @@ struct mark_range : markable_dual_storage_type<mark_range, range, range_represen
 ```
 
 The first argument is the type of the policy we are defining. (We are using the CRTP.)
-The second is the logical value type, and the third is its "raw" layout-compatible conterpart.
+The second is the logical value type, and the third is itd "raw" layout-compatible conterpart.
 
 WARNING: However, there is a certain danger involved when using dual storage.
 Types `T` and `DualT` passed to `markable_dual_storage_type` need to preserve certain relation:
