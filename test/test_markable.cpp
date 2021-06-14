@@ -464,7 +464,7 @@ void test_mark_dual_storage_1() { test_mark_dual_storage<range, mark_range>(); }
 void test_mark_dual_storage_2() { test_mark_dual_storage<range2, mark_range2>(); }
 
 struct mark_negative : markable_type<int>
-{               
+{
   static int marked_value() { return -2; }
   static bool is_marked_value(const int& v) { return v < 0; }
 };
@@ -490,8 +490,8 @@ void test_comparison()
     assert (_0 != p1);
     assert (p1 != _0);
     assert (x == x);
-    assert (n1 == n1); 
-    assert (p1 == p1); 
+    assert (n1 == n1);
+    assert (p1 == p1);
     assert (_0 == _0);
   }
   {
@@ -503,8 +503,8 @@ void test_comparison()
     assert (_0 != p1);
     assert (p1 != _0);
     assert (x == x);
-    assert (n1 == n1); 
-    assert (p1 == p1); 
+    assert (n1 == n1);
+    assert (p1 == p1);
     assert (_0 == _0);
   }
 }
