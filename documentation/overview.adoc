@@ -59,7 +59,7 @@ or by providing it explicitly.
 It is not possible to change the stored value through function `value()`: it returns a non-mutable reference or value (based on the policy).
 
 There are no relational operations provided by default, as it is not obvious how a no-value should compare against other values.
-If you want to compare them, you need to provide a custom comparator, where you explicitly state how the marked state is treated, or you can select comparison policy in the second template parameter. 
+If you want to compare them, you need to provide a custom comparator, where you explicitly state how the marked state is treated, or you can select comparison policy in the second template parameter.
 
 There is no way to 'reset' the optional object other than to move-assign a new value:
 
@@ -251,6 +251,29 @@ and we are storing no `bool` we have to create a temporary value,
 and return it by value: therefore type `reference_type` is not really a reference.
 
 
+### Default marked-value policies
+
+There is also a possibility to select a default mark-value policy for a given type.
+
+```c++
+default_markable<int> iN, i0(0);_
+```
+
+Alias `default_markable` selects the marked policy and uses it in `markable`
+template. This mechanism tries to pick the best policy:
+
+* `mark_int<T, std::numeric_limits<T>::max()>` for built-in integral types,
+* `mark_fp_nan<T>` for floating-point types,
+* `mark_bool` for `bool`,
+* `mark_enum<T, std::numeric_limits<typename std::underlying_type<T>::type>::max()` for enumerations,
+* `mark_value_init<T>` otherwise.
+
+It is possible that the default policy selection will create an ill-formed type.
+Also, note that the policy selected by default may not work for your use case.
+Manual policy selection might be preferred, because you are in control of
+what is actually selected.
+
+
 ### Using dual storage for marking values
 
 Sometimes there is no spare value of `T`, but there is a spare combination of member values in `DUAL<T>`,
@@ -363,7 +386,7 @@ struct mark_negative : markable_type<int>
 {
   static bool is_marked_value(const int& v) { return v < 0; } // any negative value is marked
   static int marked_value() { return -1; }
-}; 
+};
 
 using opt_nonnegative_int = markable<mark_negative, cmp_by_value_eq>;
 assert (opt_nonnegative_int{} == opt_nonnegative_int{-2});

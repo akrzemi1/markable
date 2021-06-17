@@ -12,6 +12,7 @@
 #include <limits>
 #include <new>
 #include <type_traits>
+#include <limits>
 
 # if defined AK_TOOLKIT_WITH_CONCEPTS
 #include <concepts>
@@ -501,7 +502,57 @@ public:
   }
 };
 
+// This defines a customization point for selecting the default makred value
+// policy for a given type
+
+template <typename T, typename = void>
+struct default_mark_policy
+{
+  using type = mark_value_init<T>;
+};
+
+template <typename T>
+struct default_mark_policy<T, typename std::enable_if<std::is_integral<T>::value>::type>
+{
+  using type = mark_int<T, std::numeric_limits<T>::max()>;
+};
+
+template <typename T>
+struct default_mark_policy<T, typename std::enable_if<std::is_floating_point<T>::value>::type>
+{
+  using type = mark_fp_nan<T>;
+};
+
+template <>
+struct default_mark_policy<bool, void>
+{
+  using type = mark_bool;
+};
+
+#ifndef AK_TOOLBOX_NO_UNDERLYING_TYPE
+
+template <typename T>
+struct default_mark_policy<T, typename std::enable_if<std::is_enum<T>::value>::type>
+{
+  using type = mark_enum<T, std::numeric_limits<typename std::underlying_type<T>::type>::max()>;
+};
+
+#else
+
+template <typename T>
+struct default_mark_policy<T, typename std::enable_if<std::is_enum<T>::value>::type>
+{
+  using type = mark_enum<T, std::numeric_limits<int>::max()>;
+};
+
+#endif
+
+template <typename T>
+using default_markable = markable<typename default_mark_policy<T>::type>;
+
+
 } // namespace markable_ns
+
 
 using markable_ns::markable;
 using markable_ns::markable_type;
@@ -517,6 +568,7 @@ using markable_ns::mark_enum;
 using markable_ns::cmp_none;
 using markable_ns::cmp_by_storage;
 using markable_ns::cmp_by_value_eq;
+using markable_ns::default_markable;
 
 
 # if defined AK_TOOLKIT_WITH_CONCEPTS

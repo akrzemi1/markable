@@ -509,6 +509,34 @@ void test_comparison()
   }
 }
 
+void test_default_markable()
+{
+  default_markable<int> i_, i0(0), i1(1), iM(std::numeric_limits<int>::max());
+  assert(!i_.has_value());
+  assert(!iM.has_value());
+  assert(i0.has_value());
+  assert(i1.has_value());
+
+  default_markable<float> f_, f0(0.0f);
+  assert(!f_.has_value());
+  assert(f0.has_value());
+
+  enum class Dir { N, E, S, W };
+
+  default_markable<Dir> d_, dN(Dir::N);
+  assert(!d_.has_value());
+  assert(dN.has_value());
+
+  default_markable<int*> p_;
+  assert(!p_.has_value());
+  assert(p_.storage_value() == nullptr);
+
+  default_markable<bool> b_, bT(true), bF(false);
+  assert(!b_.has_value());
+  assert(bT.has_value());
+  assert(bF.has_value());
+}
+
 /*
 class Date
 {
@@ -646,8 +674,6 @@ void test_dual_storage_with_tuple_init_state_mutation()
 
 
 
-
-
 int main()
 {
   test_value_ctor();
@@ -668,6 +694,7 @@ int main()
 
   test_mark_dual_storage_1();
   test_mark_dual_storage_2();
+  test_default_markable();
 /*  test_dual_storage_with_tuple_default_and_move_ctor();
   test_dual_storage_with_tuple_copy_ctor();
   test_dual_storage_with_tuple_init_state_mutation();

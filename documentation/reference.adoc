@@ -58,6 +58,9 @@ namespace ak_toolkit
 
     template <typename T>
       struct representation_of;
+
+    template <typename T>
+      using default_markable = /* see below */;
   }
 
   using markable_ns::markable;
@@ -603,3 +606,15 @@ struct mark_enum : markable_type<Enum, typename std::underlying_type<Enum>::type
 ```
 
 `Enum` is required to be an enumeration type. `Val` a value of integral type, `std::underlying_type_t<Enum>` not necessarily from the range designated by `Enum`.
+
+
+
+### Alias template `default_markable`
+
+```c++
+template <typename T>
+  using default_markable = /* see below */;
+```
+
+Type `default_markable<T>` is an alias for `markable<MP(T)>`, where `MP(T)`
+is a marked-value policy with `value_type` same as `T`.
