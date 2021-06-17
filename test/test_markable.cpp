@@ -537,7 +537,11 @@ void test_default_markable()
   assert(bF.has_value());
 }
 
-/*
+/// The next three tests illustrate:
+///  1. How to use representation_of
+///  2. How to use markable_dual_storage_type_unsafe
+///  3. How to use std::pair as representaiton in dual storage.
+
 class Date
 {
   int _d;
@@ -554,12 +558,6 @@ int DateInterval_value_ctor_calls_count = 0;
 int DateInterval_copy_ctor_calls_count = 0;
 int DateInterval_move_ctor_calls_count = 0;
 int DateInterval_dtor_calls_count = 0;
-
-struct RawDateInterval
-{
-  Date _first;
-  Date _last;
-};
 
 class DateInterval
 {
@@ -582,6 +580,13 @@ public:
   friend bool operator==(DateInterval const& l, DateInterval const& r) { return l.first() == r.first() && l.last() == r.last(); }
 };
 
+namespace ak_toolkit { namespace markable_ns {
+  template<> struct representation_of<DateInterval>
+  {
+    typedef std::pair<Date, Date> type;
+  };
+}}
+
 void reset_Interval_count ()
 {
   DateInterval_value_ctor_calls_count = 0;
@@ -598,10 +603,10 @@ bool count_Interval_value_copy_move_dtror(int v, int c, int m, int d)
       && DateInterval_dtor_calls_count == d;
 };
 
-struct mark_interval : markable_dual_storage_type< DateInterval, std::pair<Date, Date> >
+struct mark_interval : markable_dual_storage_type_unsafe<mark_interval, DateInterval /*, std::pair<Date, Date>*/ >
 {
-  static storage_type marked_value() { return {Date{2}, Date{1}}; }
-  static bool is_marked_value(const storage_type& v) { return v.second < v.first; }
+  static representation_type marked_value() { return std::make_pair(Date{2}, Date{1}); }
+  static bool is_marked_value(const representation_type& v) { return v.second < v.first; }
 };
 
 void test_dual_storage_with_tuple_default_and_move_ctor()
@@ -670,7 +675,6 @@ void test_dual_storage_with_tuple_init_state_mutation()
   }
   assert (count_Interval_value_copy_move_dtror(1, 2, 2, 5));
 }
-*/
 
 
 
@@ -695,8 +699,7 @@ int main()
   test_mark_dual_storage_1();
   test_mark_dual_storage_2();
   test_default_markable();
-/*  test_dual_storage_with_tuple_default_and_move_ctor();
+  test_dual_storage_with_tuple_default_and_move_ctor();
   test_dual_storage_with_tuple_copy_ctor();
   test_dual_storage_with_tuple_init_state_mutation();
-*/
 }
