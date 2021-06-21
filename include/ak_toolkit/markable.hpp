@@ -75,18 +75,29 @@ concept mark_policy =
     typename MP::reference_type;
     typename MP::representation_type;
   } &&
-  requires(const typename MP::representation_type & r,
-           const typename MP::storage_type &        s,
-           const typename MP::value_type &          cv,
-                 typename MP::value_type &&         rv)
+  requires(const typename MP::representation_type &  cr,
+                 typename MP::representation_type && rr,
+           const typename MP::storage_type &         s,
+           const typename MP::value_type &           cv,
+                 typename MP::value_type &&          rv)
   {
-    { MP::marked_value() }               -> ::std::convertible_to<typename MP::representation_type>;
-    { MP::is_marked_value(r) }           -> ::std::convertible_to<bool>;
+    { MP::marked_value() }
+      -> ::std::convertible_to<typename MP::representation_type>;
+    { MP::is_marked_value(cr) }
+      -> ::std::convertible_to<bool>;
 
-    { MP::access_value(s) }              -> ::std::same_as<typename MP::reference_type>;
-    { MP::representation(s) }            -> ::std::same_as<const typename MP::representation_type &>;
-    { MP::store_value(cv) }              -> ::std::convertible_to<typename MP::storage_type>;
-    { MP::store_value(::std::move(rv)) } -> ::std::convertible_to<typename MP::storage_type>;
+    { MP::access_value(s) }
+      -> ::std::same_as<typename MP::reference_type>;
+    { MP::representation(s) }
+      -> ::std::same_as<const typename MP::representation_type &>;
+    { MP::store_value(cv) }
+      -> ::std::convertible_to<typename MP::storage_type>;
+    { MP::store_value(::std::move(rv)) }
+      -> ::std::convertible_to<typename MP::storage_type>;
+    { MP::store_representation(cr) }
+      -> ::std::convertible_to<typename MP::storage_type>;
+    { MP::store_representation(::std::move(rr)) }
+      -> ::std::convertible_to<typename MP::storage_type>;
   };
 
 # define AK_TOOLKIT_MARK_POLICY mark_policy
@@ -108,6 +119,8 @@ struct markable_type
   static AK_TOOLKIT_CONSTEXPR const representation_type& representation(const storage_type& v) { return v; }
   static AK_TOOLKIT_CONSTEXPR const storage_type& store_value(const value_type& v) { return v; }
   static AK_TOOLKIT_CONSTEXPR storage_type&& store_value(value_type&& v) { return std::move(v); }
+  static AK_TOOLKIT_CONSTEXPR storage_type&& store_representation(const representation_type& v) { return v; }
+  static AK_TOOLKIT_CONSTEXPR storage_type&& store_representation(representation_type&& v) { return std::move(v); }
 };
 
 
@@ -403,6 +416,10 @@ struct markable_dual_storage_type_unsafe
   { return storage_type(v); }
   static  storage_type store_value(value_type&& v)
   { return storage_type(std::move(v)); }
+  static  storage_type store_representation(const representation_type& r)
+  { return storage_type(r); }
+  static  storage_type store_representation(representation_type&& r)
+  { return storage_type(std::move(r)); }
 };
 
 template <typename MPT, typename T, typename REP_T = typename representation_of<T>::type>
@@ -412,50 +429,113 @@ struct markable_dual_storage_type : markable_dual_storage_type_unsafe<MPT, T, RE
   typedef void is_safe_dual_storage_mark_policy;
 };
 
-template <typename Markable, typename MP>
-struct cmp_none {};
+// ordering policies
 
 template <typename Markable, typename MP>
-struct cmp_by_storage
+class order_none {};
+
+template <typename Markable, typename MP>
+class order_by_representation
 {
-  friend auto operator==(const cmp_by_storage& l, const cmp_by_storage& r)
-    -> decltype(::std::declval<const typename MP::storage_type&>() ==
-	        ::std::declval<const typename MP::storage_type&>())
-  { return l.m().storage_value() == r.m().storage_value(); }
+  static const typename MP::representation_type& representation(); // for decltype only
+  static const Markable& m(const order_by_representation& o) noexcept { return static_cast<const Markable&>(o); }
 
-  friend auto operator!=(const cmp_by_storage& l, const cmp_by_storage& r)
-    -> decltype(::std::declval<const typename MP::storage_type&>() !=
-	        ::std::declval<const typename MP::storage_type&>())
-  { return l.m().storage_value() != r.m().storage_value(); }
+  static bool unique_marked_value(const Markable& mk)
+  {
+    // returns false if mk has no value but its storage is different
+    // than the MP::marked_value().
+    return mk.has_value() || mk.representation_value() == MP::marked_value();
+  }
 
-private:
-  const Markable& m() const noexcept { return static_cast<const Markable&>(*this); }
+public:
+  friend auto operator==(const order_by_representation& l, const order_by_representation& r)
+    -> decltype(representation() == representation())
+    {
+      assert(unique_marked_value(m(l)));
+      assert(unique_marked_value(m(r)));
+      return m(l).representation_value() == m(r).representation_value();
+    }
+
+  friend auto operator!=(const order_by_representation& l, const order_by_representation& r)
+    -> decltype(representation() == representation())
+    {
+      return !(l == r);
+    }
+
+  friend auto operator<(const order_by_representation& l, const order_by_representation& r)
+    -> decltype(representation() < representation())
+    {
+      assert(unique_marked_value(m(l)));
+      assert(unique_marked_value(m(r)));
+      return m(l).representation_value() < m(r).representation_value();
+    }
+
+  friend auto operator<=(const order_by_representation& l, const order_by_representation& r)
+    -> decltype(representation() < representation())
+    {
+      return !(r < l);
+    }
+
+  friend auto operator>(const order_by_representation& l, const order_by_representation& r)
+    -> decltype(representation() < representation())
+    {
+      return r < l;
+    }
+
+  friend auto operator>=(const order_by_representation& l, const order_by_representation& r)
+    -> decltype(representation() < representation())
+    {
+      return !(l < r);
+    }
 };
 
 template <typename Markable, typename MP>
-struct cmp_by_value_eq
+class order_by_value
 {
-  friend auto operator==(const cmp_by_value_eq& l, const cmp_by_value_eq& r)
-    -> decltype(::std::declval<typename MP::reference_type>() ==
-	        ::std::declval<typename MP::reference_type>())
+  static const Markable& m(const order_by_value& o) noexcept { return static_cast<const Markable&>(o); }
+  static typename MP::reference_type value(); // for decltype only
+
+public:
+  friend auto operator==(const order_by_value& l, const order_by_value& r)
+    -> decltype(value() == value())
   {
-    return !l.m().has_value() ? !r.m().has_value() : r.m().has_value() && l.m().value() == r.m().value();
+    return !m(l).has_value() ? !m(r).has_value() : m(r).has_value() && m(l).value() == m(r).value();
   }
 
-  friend auto operator!=(const cmp_by_value_eq& l, const cmp_by_value_eq& r)
-    -> decltype(::std::declval<typename MP::reference_type>() !=
-	        ::std::declval<typename MP::reference_type>())
+  friend auto operator!=(const order_by_value& l, const order_by_value& r)
+    -> decltype(value() != value())
   {
-    return !l.m().has_value() ? r.m().has_value() : !r.m().has_value() || r.m().value() != l.m().value();
+    return !m(l).has_value() ? m(r).has_value() : !m(r).has_value() || m(r).value() != m(l).value();
   }
 
-private:
-  const Markable& m() const noexcept { return static_cast<const Markable&>(*this); }
+  friend auto operator<(const order_by_value& l, const order_by_value& r)
+    -> decltype(value() < value())
+  {
+    return !m(r).has_value() ? false : (!m(l).has_value() ? true : m(l).value() < m(r).value());
+  }
+
+  friend auto operator>(const order_by_value& l, const order_by_value& r)
+    -> decltype(value() < value())
+  {
+    return r < l;
+  }
+
+  friend auto operator<=(const order_by_value& l, const order_by_value& r)
+    -> decltype(value() < value())
+  {
+    return !(r < l);
+  }
+
+  friend auto operator>=(const order_by_value& l, const order_by_value& r)
+    -> decltype(value() < value())
+  {
+    return !(l < r);
+  }
 };
 
 
 
-template <AK_TOOLKIT_MARK_POLICY MP, template <typename, typename> class CP = cmp_none>
+template <AK_TOOLKIT_MARK_POLICY MP, template <typename, typename> class CP = order_none>
 class markable : public CP<markable<MP, CP>, MP>
 {
   // The following assert is only in case a safe dual storage is used.
@@ -466,15 +546,15 @@ class markable : public CP<markable<MP, CP>, MP>
                  "while building a markable type: representation of T must not throw exceptions from move constructor or when creating the marked value");
 public:
   typedef typename MP::value_type value_type;
-  typedef typename MP::storage_type storage_type;
+  typedef typename MP::representation_type representation_type;
   typedef typename MP::reference_type reference_type;
 
 private:
-  storage_type _storage;
+  typename MP::storage_type _storage;
 
 public:
   AK_TOOLKIT_CONSTEXPR markable() AK_TOOLKIT_NOEXCEPT_AS(MP::marked_value())
-    : _storage(MP::marked_value()) {}
+    : _storage(MP::store_representation(MP::marked_value())) {}
 
   AK_TOOLKIT_CONSTEXPR explicit markable(const value_type& v)
     : _storage(MP::store_value(v)) {}
@@ -488,19 +568,21 @@ public:
 
   AK_TOOLKIT_CONSTEXPR reference_type value() const { return AK_TOOLKIT_ASSERT(has_value()), MP::access_value(_storage); }
 
-  AK_TOOLKIT_CONSTEXPR storage_type const& storage_value() const { return _storage; }
+  AK_TOOLKIT_CONSTEXPR representation_type const& representation_value() const
+     { return MP::representation(_storage); }
 
   void assign(value_type&& v) { _storage = MP::store_value(std::move(v)); }
   void assign(const value_type& v) { _storage = MP::store_value(v); }
 
-  void assign_storage(storage_type&& s) { _storage = std::move(s); }
-  void assign_storage(storage_type const& s) { _storage = s; }
+  void assign_representation(representation_type&& s) { _storage = MP::store_representation(std::move(s)); }
+  void assign_representation(representation_type const& s) { _storage = MP::store_representation(s); }
 
   friend void swap(markable& lhs, markable& rhs)
   {
     using std::swap; swap(lhs._storage, rhs._storage);
   }
 };
+
 
 // This defines a customization point for selecting the default makred value
 // policy for a given type
@@ -565,9 +647,9 @@ using markable_ns::mark_value_init;
 using markable_ns::mark_optional;
 using markable_ns::mark_stl_empty;
 using markable_ns::mark_enum;
-using markable_ns::cmp_none;
-using markable_ns::cmp_by_storage;
-using markable_ns::cmp_by_value_eq;
+using markable_ns::order_none;
+using markable_ns::order_by_representation;
+using markable_ns::order_by_value;
 using markable_ns::default_markable;
 
 
@@ -583,5 +665,34 @@ static_assert(mark_policy<mark_value_init<int>>, "mark_policy test failed");
 # endif
 
 } // namespace ak_toolkit
+
+
+// hashing
+
+
+namespace std
+{
+  template <typename MP>
+  struct hash<ak_toolkit::markable<MP, ak_toolkit::order_by_representation>>
+  {
+    typedef typename hash<typename MP::representation_type>::result_type result_type;
+    typedef ak_toolkit::markable<MP, ak_toolkit::order_by_representation> argument_type;
+
+    constexpr result_type operator()(argument_type const& arg) const {
+      return std::hash<typename MP::representation_type>{}(arg.representation_value());
+    }
+  };
+
+  template <typename MP>
+  struct hash<ak_toolkit::markable<MP, ak_toolkit::order_by_value>>
+  {
+    typedef typename hash<typename MP::value_type>::result_type result_type;
+    typedef ak_toolkit::markable<MP, ak_toolkit::order_by_value> argument_type;
+
+    constexpr result_type operator()(argument_type const& arg) const {
+      return arg.has_value() ? std::hash<typename MP::value_type>{}(arg.value()) : result_type{};
+    }
+  };
+} // namespace std
 
 #endif //AK_TOOLBOX_COMPACT_OPTIONAL_HEADER_GUARD_

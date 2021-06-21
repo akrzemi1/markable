@@ -31,7 +31,7 @@ void test_value_ctor()
     static_assert (!std::is_convertible<int, opt_int>(), "markable<T> must not be convertible from T");
 
     opt_int oi_, oiN1(-1), oi0(0), oi1(1);
-	  assert (oi_.storage_value() == -1);
+	  assert (oi_.representation_value() == -1);
     assert (!oi_.has_value());
     assert (!oiN1.has_value());
     assert ( oi0.has_value());
@@ -121,15 +121,15 @@ void test_bool_storage()
   assert (obF.value() == false);
 }
 
-void test_storage_value()
+void test_representation_value()
 {
   typedef markable< mark_int<int, -1> > opt_int;
   opt_int oi_, oiN1(-1), oi0(0), oi1(1);
 
-  assert ( oi_.storage_value() == -1);
-  assert (oiN1.storage_value() == -1);
-  assert ( oi0.storage_value() ==  0);
-  assert ( oi1.storage_value() ==  1);
+  assert ( oi_.representation_value() == -1);
+  assert (oiN1.representation_value() == -1);
+  assert ( oi0.representation_value() ==  0);
+  assert ( oi1.representation_value() ==  1);
 }
 
 void test_mark_fp_nan()
@@ -142,14 +142,14 @@ void test_mark_fp_nan()
 
   assert (o1.value() == 1.0);
 
-  double v = o_.storage_value();
+  double v = o_.representation_value();
   assert (v != v);
 
-  v = o1.storage_value();
+  v = o1.representation_value();
   assert (v == 1.0);
   assert (v == v);
 
-  v = oNan.storage_value();
+  v = oNan.representation_value();
   assert (v != v);
 }
 
@@ -165,9 +165,9 @@ void test_mark_value_init()
 
     assert (o1.value() == 1);
 
-    assert (o_.storage_value() == 0);
-    assert (o1.storage_value() == 1);
-    assert (oE.storage_value() == 0);
+    assert (o_.representation_value() == 0);
+    assert (o1.representation_value() == 1);
+    assert (oE.representation_value() == 0);
   }
   {
     typedef markable<mark_value_init<std::string>> opt_t;
@@ -179,9 +179,9 @@ void test_mark_value_init()
 
     assert (o1.value() == "one");
 
-    assert (o_.storage_value() == "");
-    assert (o1.storage_value() == "one");
-    assert (oE.storage_value() == "");
+    assert (o_.representation_value() == "");
+    assert (o1.representation_value() == "one");
+    assert (oE.representation_value() == "");
   }
 }
 
@@ -217,9 +217,9 @@ void test_mark_stl_empty()
     assert (!oE.has_value());
     assert (objects_created_with_value == 3);
 
-    assert (o_.storage_value() == Cont(true));
-    assert (o1.storage_value() == Cont(false));
-    assert (oE.storage_value() == Cont(true));
+    assert (o_.representation_value() == Cont(true));
+    assert (o1.representation_value() == Cont(false));
+    assert (oE.representation_value() == Cont(true));
   }
   {
     typedef markable<mark_stl_empty<std::string>> opt_t;
@@ -231,9 +231,9 @@ void test_mark_stl_empty()
 
     assert (o1.value() == "one");
 
-    assert (o_.storage_value() == "");
-    assert (o1.storage_value() == "one");
-    assert (oE.storage_value() == "");
+    assert (o_.representation_value() == "");
+    assert (o1.representation_value() == "one");
+    assert (oE.representation_value() == "");
   }
   assert(objects_created == objects_destroyed);
 }
@@ -252,9 +252,9 @@ void test_mark_enum()
   assert (oN.value() == Dir::N);
   assert (oW.value() == Dir::W);
 
-  assert (o_.storage_value() == -1);
-  assert (oN.storage_value() ==  0);
-  assert (oW.storage_value() ==  3);
+  assert (o_.representation_value() == -1);
+  assert (oN.representation_value() ==  0);
+  assert (oW.representation_value() ==  3);
 }
 
 
@@ -268,10 +268,10 @@ void test_assignment()
   assert(od.has_value());
   assert(od.value() == Dir::W);
 
-  od.assign_storage(-1);
+  od.assign_representation(-1);
   assert(!od.has_value());
 
-  od.assign_storage(0);
+  od.assign_representation(0);
   assert(od.has_value());
   assert(od.value() == Dir::N);
 }
@@ -469,43 +469,158 @@ struct mark_negative : markable_type<int>
   static bool is_marked_value(const int& v) { return v < 0; }
 };
 
-void test_comparison()
+template <typename T>
+void assert_correct_relation_between_relops(T a, T b)
+{
+  assert( (a == b) ==  (b == a) );
+  assert( (a != b) ==  (b != a) );
+  assert( (a != b) == !(a == b) );
+  assert( (b != a) == !(b == a) );
+
+  assert( (a < b) == (b > a) );
+  assert( (a < b) == !(a >= b) );
+  assert( (a < b) == !(b <= a) );
+
+  assert( (a == b) == (a >= b && a <= b) );
+  assert( (a == b) == (!(a < b) && !(a > b)) );
+  assert( (a <= b) == ((a < b) || (a == b)) );
+  assert( (a < b) == (!(a > b) && !(a == b)) );
+  assert( (a != b) == (a > b) || (b > a) );
+
+  if (a < b) assert(a != b);
+  if (a > b) assert(a != b);
+}
+
+void test_order_by_value()
 {
   {
-  typedef markable<mark_int<int, 0>, cmp_by_storage> opt_int;
-  opt_int n1 {-1}, x{}, p1 {+1};
-  assert (n1 != x);
-  assert (x != p1);
-  assert (n1 != p1);
-  assert (n1 == n1);
-  assert (p1 == p1);
-  assert (x == x);
+    using opt_int = markable<mark_int<int, 0>, order_by_value>;
+    opt_int n1 {-1}, oo {}, p1{+1};
+
+    assert_correct_relation_between_relops(n1, n1);
+    assert_correct_relation_between_relops(p1, p1);
+    assert_correct_relation_between_relops(oo, oo);
+    assert_correct_relation_between_relops(n1, oo);
+    assert_correct_relation_between_relops(p1, n1);
+    assert_correct_relation_between_relops(oo, p1);
+
+    assert(n1 == n1);
+    assert(p1 == p1);
+    assert(oo == oo);
+
+    // no-value is smaller than any value
+    assert(oo < n1);
+    assert(n1 < p1);
+    assert(oo < p1);
+
+    std::hash<int> hash_int;
+    std::hash<opt_int> hash_opt_int;
+    assert(hash_opt_int(n1) == hash_int(-1));
+    assert(hash_opt_int(p1) == hash_int(+1));
+    assert(hash_opt_int(oo) == std::hash<int>::result_type{});
   }
   {
-    typedef markable<mark_negative, cmp_by_storage> opt_int;
-    opt_int x{}, n1{-1}, _0 {0}, p1{+1};
-    assert (x != n1);
-    assert (n1 != x); // both marked, but different representation
-    assert (n1 != _0);
-    assert (_0 != p1);
-    assert (p1 != _0);
-    assert (x == x);
-    assert (n1 == n1);
-    assert (p1 == p1);
-    assert (_0 == _0);
+    using opt_int = markable<mark_negative, order_by_value>;
+    opt_int xx{}, n1{-1}, _0 {0}, p1{+1};
+
+    {
+      assert(xx.representation_value() != n1.representation_value());
+      assert(!xx.has_value());
+      assert(!n1.has_value());
+    }
+
+    assert_correct_relation_between_relops(xx, xx);
+    assert_correct_relation_between_relops(n1, n1);
+    assert_correct_relation_between_relops(_0, _0);
+    assert_correct_relation_between_relops(p1, p1);
+
+    assert_correct_relation_between_relops(xx, n1);
+    assert_correct_relation_between_relops(xx, _0);
+    assert_correct_relation_between_relops(xx, p1);
+    assert_correct_relation_between_relops(n1, _0);
+    assert_correct_relation_between_relops(n1, p1);
+    assert_correct_relation_between_relops(_0, p1);
+
+    assert(xx == xx);
+    assert(_0 == _0);
+    assert(n1 == n1);
+    assert(p1 == p1);
+
+    // different no-values are always equal
+    assert(xx == n1);
+
+    // no-value is smaller than any value
+    assert(xx < _0);
+    assert(xx < p1);
+    assert(n1 < _0);
+    assert(n1 < p1);
+    assert(_0 < p1);
+
+    std::hash<int> hash_int;
+    std::hash<opt_int> hash_opt_int;
+    assert(hash_opt_int(xx) == std::hash<int>::result_type{});
+    assert(hash_opt_int(n1) == std::hash<int>::result_type{});
+    assert(hash_opt_int(_0) == hash_int(0));
+    assert(hash_opt_int(p1) == hash_int(+1));
+  }
+}
+
+void test_order_by_representation()
+{
+  {
+    using opt_int = markable<mark_int<int, 0>, order_by_representation>;
+    opt_int n1 {-1}, _0{}, p1 {+1};
+
+    assert_correct_relation_between_relops(n1, n1);
+    assert_correct_relation_between_relops(p1, p1);
+    assert_correct_relation_between_relops(_0, _0);
+    assert_correct_relation_between_relops(n1, _0);
+    assert_correct_relation_between_relops(p1, n1);
+    assert_correct_relation_between_relops(_0, p1);
+
+    assert(n1 == n1);
+    assert(p1 == p1);
+    assert(_0 == _0);
+
+    // no-value is smaller than any value
+    assert(n1 < _0);
+    assert(n1 < p1);
+    assert(_0 < p1);
+
+    std::hash<int> hash_int;
+    std::hash<opt_int> hash_opt_int;
+    assert(hash_opt_int(n1) == hash_int(-1));
+    assert(hash_opt_int(p1) == hash_int(+1));
+    assert(hash_opt_int(_0) == hash_int(0));
   }
   {
-    typedef markable<mark_negative, cmp_by_value_eq> opt_int;
-    opt_int x{}, n1{-1}, _0 {0}, p1{+1};
-    assert (x == n1);
-    assert (n1 == x); // both marked => equal (regardless of representation)
-    assert (n1 != _0);
-    assert (_0 != p1);
-    assert (p1 != _0);
-    assert (x == x);
-    assert (n1 == n1);
-    assert (p1 == p1);
-    assert (_0 == _0);
+    using opt_int = markable<mark_negative, order_by_representation>;
+    opt_int xx{}, _0{0}, p1{+1};
+    // opt_int n1{-1}; // illegal: it would create value-less markable with storage
+                       // value different than -2 (MP::marked_value())
+
+    assert_correct_relation_between_relops(xx, xx);
+    assert_correct_relation_between_relops(_0, _0);
+    assert_correct_relation_between_relops(p1, p1);
+
+    assert_correct_relation_between_relops(xx, _0);
+    assert_correct_relation_between_relops(xx, p1);
+    assert_correct_relation_between_relops(_0, p1);
+
+    assert(xx == xx);
+    assert(_0 == _0);
+    assert(p1 == p1);
+
+    // no-value is smaller than any value
+    assert(xx < _0);
+    assert(xx < p1);
+    assert(_0 < p1);
+
+    std::hash<int> hash_int;
+    std::hash<opt_int> hash_opt_int;
+    assert(hash_opt_int(xx) == hash_int(-2));
+    assert(hash_opt_int(_0) == hash_int(0));
+    assert(hash_opt_int(p1) == hash_int(+1));
   }
 }
 
@@ -529,12 +644,95 @@ void test_default_markable()
 
   default_markable<int*> p_;
   assert(!p_.has_value());
-  assert(p_.storage_value() == nullptr);
+  assert(p_.representation_value() == nullptr);
 
   default_markable<bool> b_, bT(true), bF(false);
   assert(!b_.has_value());
   assert(bT.has_value());
   assert(bF.has_value());
+}
+
+// Test if comparison work for dual storage
+
+class TOD // Time Of Day
+{
+  int _minutes;
+
+public:
+  bool invariant() const { return 0 <= _minutes && _minutes < 1440; }
+  explicit TOD(int min) : _minutes(min) { assert(invariant()); }
+  friend bool operator<(const TOD& l, const TOD& r) { return l._minutes < r._minutes; }
+  friend bool operator==(const TOD& l, const TOD& r) { return l._minutes == r._minutes; }
+  friend bool operator!=(const TOD& l, const TOD& r) { return !(l == r); }
+};
+
+struct TOD_representation
+{
+  int minutes;
+};
+
+struct mark_TOD : markable_dual_storage_type<mark_TOD, TOD, TOD_representation>
+{
+  static representation_type marked_value() AK_TOOLKIT_NOEXCEPT { return {-1}; }
+  static bool is_marked_value(const representation_type& v) { return v.minutes < 0; }
+};
+
+struct TOD_representation_relops
+{
+  int minutes;
+
+  friend bool operator<(const TOD_representation_relops& l, const TOD_representation_relops& r) { return l.minutes < r.minutes; }
+  friend bool operator==(const TOD_representation_relops& l, const TOD_representation_relops& r) { return l.minutes == r.minutes; }
+};
+
+struct mark_TOD_cmp : markable_dual_storage_type<mark_TOD_cmp, TOD, TOD_representation_relops>
+{
+  static representation_type marked_value() AK_TOOLKIT_NOEXCEPT { return {-1}; }
+  static bool is_marked_value(const representation_type& v) { return v.minutes < 0; }
+};
+
+
+void test_dual_storage_ordering()
+{
+  {
+    using opt_TOD = markable<mark_TOD, order_by_value>;
+    opt_TOD _0{TOD{0}}, _1{TOD{1}}, xx;
+
+    assert_correct_relation_between_relops(_0, _0);
+    assert_correct_relation_between_relops(_1, _1);
+    assert_correct_relation_between_relops(xx, xx);
+    assert_correct_relation_between_relops(_0, _1);
+    assert_correct_relation_between_relops(_1, xx);
+    assert_correct_relation_between_relops(xx, _0);
+
+    assert(_0 == _0);
+    assert(_1 == _1);
+    assert(xx == xx);
+
+    // no-value is smaller than any value
+    assert(xx < _0);
+    assert(_0 < _1);
+    assert(xx < _1);
+  }
+  {
+    using opt_TOD = markable<mark_TOD_cmp, order_by_representation>;
+    opt_TOD _0{TOD{0}}, _1{TOD{1}}, xx;
+
+    assert_correct_relation_between_relops(_0, _0);
+    assert_correct_relation_between_relops(_1, _1);
+    assert_correct_relation_between_relops(xx, xx);
+    assert_correct_relation_between_relops(_0, _1);
+    assert_correct_relation_between_relops(_1, xx);
+    assert_correct_relation_between_relops(xx, _0);
+
+    assert(_0 == _0);
+    assert(_1 == _1);
+    assert(xx == xx);
+
+    assert(xx < _0);
+    assert(_0 < _1);
+    assert(xx < _1);
+  }
 }
 
 /// The next three tests illustrate:
@@ -676,7 +874,53 @@ void test_dual_storage_with_tuple_init_state_mutation()
   assert (count_Interval_value_copy_move_dtror(1, 2, 2, 5));
 }
 
+namespace most_hostile_types {
 
+  struct Val { int v; };
+  struct Ref { int const* v; };
+  struct Rep { int v; };
+  struct Store { Val val; Rep rep; };
+
+  struct mark_hostile
+  {
+    using value_type = Val;
+    using reference_type = Ref;
+    using representation_type = Rep;
+    using storage_type = Store;
+
+    static representation_type marked_value() AK_TOOLKIT_NOEXCEPT { return {0}; }
+    static bool is_marked_value(const representation_type& v) { return v.v == -1; }
+
+    static reference_type access_value(const Store& s) { return Ref{&s.val.v}; }
+    static const representation_type& representation(const Store& s) { return s.rep; }
+    static storage_type store_value(const value_type& v) { return Store{v.v, 0}; }
+    static storage_type store_value(value_type&& v) { return Store{v.v, 0}; }
+    static storage_type store_representation(const representation_type& v) { return Store{0, v.v}; }
+    static storage_type store_representation(representation_type&& v) { return Store{0, v.v}; }
+  };
+
+# if defined AK_TOOLKIT_WITH_CONCEPTS
+static_assert(mark_policy<mark_hostile>, "mark_policy test failed");
+# endif
+
+  void test()
+  {
+    markable<mark_hostile> mh1, mh2{Val{1}};
+    const Rep rep{2};
+    const Val val{2};
+    mh1 = mh2;
+    mh1.assign(Val{2});
+    mh1.assign(val);
+    (void)mh1.has_value();
+    (void)mh1.value();
+    (void)mh1.representation_value();
+
+    mh2.assign_representation(Rep{2});
+    mh2.assign_representation(rep);
+
+    swap(mh1, mh2);
+  }
+}
 
 int main()
 {
@@ -685,12 +929,13 @@ int main()
   test_string_traits();
   test_custom_storage();
   test_bool_storage();
-  test_storage_value();
+  test_representation_value();
   test_mark_fp_nan();
   test_mark_value_init();
   test_mark_stl_empty();
   test_mark_enum();
-  test_comparison();
+  test_order_by_representation();
+  test_order_by_value();
 
 #if defined AK_TOOLKIT_USING_BOOST
   test_optional_as_storage();
@@ -698,8 +943,10 @@ int main()
 
   test_mark_dual_storage_1();
   test_mark_dual_storage_2();
+  test_dual_storage_ordering();
   test_default_markable();
   test_dual_storage_with_tuple_default_and_move_ctor();
   test_dual_storage_with_tuple_copy_ctor();
   test_dual_storage_with_tuple_init_state_mutation();
+  most_hostile_types::test();
 }

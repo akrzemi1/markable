@@ -16,7 +16,7 @@ namespace ak_toolkit
 {
   namespace markable_ns
   {
-    template <typename MP, typename Tag>
+    template <typename MP, template <typename, typename> class CP = order_none>
       class markable;
 
     void swap(markable & l, markable & r);
@@ -33,7 +33,7 @@ namespace ak_toolkit
     template <typename MPT, typename T, typename DUAL_T>
       struct markable_dual_storage_type;
 
-	template <typename MPT, typename T, typename DUAL_T>
+    template <typename MPT, typename T, typename DUAL_T>
       struct markable_dual_storage_type_unsafe;
 
     template <typename T, T Val>
@@ -59,6 +59,15 @@ namespace ak_toolkit
     template <typename T>
       struct representation_of;
 
+    template <typename Markable, typename MP>
+      class order_none;
+
+    template <typename Markable, typename MP>
+      class order_by_representation;
+
+    template <typename Markable, typename MP>
+      class order_by_value;
+
     template <typename T>
       using default_markable = /* see below */;
   }
@@ -74,6 +83,10 @@ namespace ak_toolkit
   using markable_ns::mark_optional;
   using markable_ns::mark_stl_empty;
   using markable_ns::mark_enum;
+  using markable_ns::order_none;
+  using markable_ns::order_by_representation;
+  using markable_ns::order_by_value;
+  using markable_ns::default_markable;
 }
 ```
 
@@ -90,18 +103,21 @@ concept mark_policy =
     typename MP::reference_type;
     typename MP::representation_type;
   } &&
-  requires(const typename MP::representation_type & r,
-           const typename MP::storage_type &        s,
-           const typename MP::value_type &          cv,
-                 typename MP::value_type &&         rv)
+  requires(const typename MP::representation_type &  cr,
+                 typename MP::representation_type && rr,
+           const typename MP::storage_type &         s,
+           const typename MP::value_type &           cv,
+                 typename MP::value_type &&          rv)
   {
-    { MP::marked_value() }             -> std::convertible_to<typename MP::representation_type>;
-    { MP::is_marked_value(r) }         -> std::convertible_to<bool>;
+    { MP::marked_value() }                      -> std::convertible_to<typename MP::representation_type>;
+    { MP::is_marked_value(cr) }                 -> std::convertible_to<bool>;
 
-    { MP::access_value(s) }            -> std::same_as<typename MP::reference_type>;
-    { MP::representation(s) }          -> std::same_as<const typename MP::representation_type &>;
-    { MP::store_value(cv) }            -> std::convertible_to<typename MP::storage_type>;
-    { MP::store_value(std::move(rv)) } -> std::convertible_to<typename MP::storage_type>;
+    { MP::access_value(s) }                     -> std::same_as<typename MP::reference_type>;
+    { MP::representation(s) }                   -> std::same_as<const typename MP::representation_type &>;
+    { MP::store_value(cv) }                     -> std::convertible_to<typename MP::storage_type>;
+    { MP::store_value(std::move(rv)) }          -> std::convertible_to<typename MP::storage_type>;
+    { MP::store_representation(cr) }            -> std::convertible_to<typename MP::storage_type>;
+    { MP::store_representation(std::move(rr)) } -> std::convertible_to<typename MP::storage_type>;
   };
 ```
 
@@ -136,6 +152,9 @@ Performs adjustments (if necessary) to represent the stored object through `repr
 #### `{ store_value(v) } -> std::convertible_to<typename MP::storage_type>`
 Given a value of type `value_type` (possibly marked), returns its representation as `storage_type`. Typically, when `value_type` and `storage_type` are same type, this is an identity function.
 
+#### `{ store_representation(r) } -> std::convertible_to<typename MP::storage_type>`
+Given a value of type `representation_type`, returns its representation as `storage_type`. Typically, when `representation_type` and `storage_type` are same type, this is an identity function.
+
 ## Class template `markable`
 
 ```c++
@@ -143,13 +162,13 @@ namespace ak_toolkit
 {
   namespace markable_ns
   {
-    template <mark_policy MP>
+    template <mark_policy MP, template <typename, typename> class CP = order_none>
     class markable
     {
     public:
-      typedef typename MP::value_type     value_type;
-      typedef typename MP::storage_type   storage_type;
-      typedef typename MP::reference_type reference_type;
+      typedef typename MP::value_type           value_type;
+      typedef typename MP::representation_type  representation_type;
+      typedef typename MP::reference_type       reference_type;
 
       constexpr markable() noexcept(noexcept(storage_type{MP::marked_value{}}));
       constexpr explicit markable(const value_type& v);
@@ -162,10 +181,17 @@ namespace ak_toolkit
 
       constexpr bool has_value() const;
       constexpr reference_type value() const;
-      constexpr storage_type const& storage_value() const;
+      constexpr representation_type const& representation_value() const;
+
+      void assign(value_type&& v);
+      void assign(const value_type& v);
+
+      void assign_representation(representation_type&& s);
+      void assign_representation(representation_type const& s);
+
 
     private:
-      storage_type val_; // exposition only
+      typename MP::storage_type val_; // exposition only
     };
   }
 }
@@ -205,11 +231,12 @@ namespace ak_toolkit
 *Throws:* Whatever `MP::access_value` throws. Also, if `reference_type` is in fact not a reference type, whatever `reference_type`'s move constructor throws.
 
 
-#### `storage_type const& storage_value() const`
+#### `representation_type const& representation_value() const`
 
-*Returns:* `val_`.
+*Returns:* `MP::representation(val_)`.
 
 *Throws:* Nothing.
+
 
 #### `void assign(const value_type& v)`
 
@@ -218,7 +245,7 @@ namespace ak_toolkit
 *Postconditions:* `has_value() == !MP::is_marked_value(v)`.
 
 *Remarks:*  If an exception is thrown during the call to `storage_type`'s assignment,
- the state of `storage()`  is determined by the exception safety guarantee of `storage_type`’s
+ the state of `val_`  is determined by the exception safety guarantee of `storage_type`’s
  assignment.
 
 
@@ -229,29 +256,29 @@ namespace ak_toolkit
 *Postconditions:* `has_value() == !MP::is_marked_value(v)`.
 
 *Remarks:*  If an exception is thrown during the call to `storage_type`'s assignment,
- the state of `storage()` is determined by the exception safety guarantee of `storage_type`’s
+ the state of `val_` is determined by the exception safety guarantee of `storage_type`’s
  assignment.
 
 
-#### `void assign_storage(const storage_type& v)`
+#### `void assign_representation(const representation_type& v)`
 
 *Effects:* Assigns storage value with expression `v`.
 
 *Postconditions:* `has_value() == !MP::is_marked_value(MP::representation(v))`.
 
 *Remarks:*  If an exception is thrown during the call to `storage_type`'s assignment,
- the state of `storage()`  is determined by the exception safety guarantee of `storage_type`’s
+ the state of `val_`  is determined by the exception safety guarantee of `storage_type`’s
  assignment.
 
 
-#### `void assign_storage(storage_type&& v)`
+#### `void assign_representation(representation_type&& v)`
 
 *Effects:* Assigns storage value with expression `std::move(v)`.
 
 *Postconditions:* `has_value() == !MP::is_marked_value(MP::representation(v))`.
 
 *Remarks:*  If an exception is thrown during the call to `storage_type`'s assignment,
- the state of `storage()` is determined by the exception safety guarantee of `storage_type`’s
+ the state of `val_` is determined by the exception safety guarantee of `storage_type`’s
  assignment.
 
 
@@ -267,7 +294,8 @@ the state of `*this` depends on the exception safety guarantees of the assignmen
 
 ## Mark policy creation tools
 
-The follwoing tools help build custom mark policies.
+The following tools help build custom mark policies.
+
 
 ### Class template `markable_type`
 
@@ -286,6 +314,9 @@ struct markable_type
   static constexpr const representation_type& representation(const storage_type& v) { return v; }
   static constexpr const value_type& store_value(const value_type& v) { return v; }
   static constexpr value_type&& store_value(value_type&& v) { return std::move(v); }
+  static constexpr storage_type&& store_representation(const representation_type& v) { return v; }
+  static constexpr storage_type&& store_representation(representation_type&& v) { return std::move(v); }
+  };
 };
 ```
 
