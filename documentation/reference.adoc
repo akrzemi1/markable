@@ -309,7 +309,7 @@ Given two `markable`s `m1` and `m2` of type `markable<MP, order_by_representatio
 
 `m1 < m2` is equivalent to `m1.representation_value() < !m2.representation_value()`.
 
-*Remark:* If `m1 or `m2 (called `m` here) stores a value where
+*Remark:* If `m1` or `m2` (called `m` here) stores a value where
 `!m.has_value() && m.representation_value() != MP::marked_value()`
 the behavior is undefined.
 
