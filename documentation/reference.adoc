@@ -16,7 +16,7 @@ namespace ak_toolkit
 {
   namespace markable_ns
   {
-    template <typename MP, template <typename, typename> class CP = order_none>
+    template <typename MP, template <typename, typename> class OP = order_none>
       class markable;
 
     void swap(markable & l, markable & r);
@@ -59,13 +59,13 @@ namespace ak_toolkit
     template <typename T>
       struct representation_of;
 
-    template <typename Markable, typename MP>
+    template <typename Markable>
       class order_none;
 
-    template <typename Markable, typename MP>
+    template <typename Markable>
       class order_by_representation;
 
-    template <typename Markable, typename MP>
+    template <typename Markable>
       class order_by_value;
 
     template <typename T>
@@ -145,7 +145,7 @@ Checks if the given value represents a marked value.
 
 Given a value encoded in `storage_type`, provides access to it through type `reference_type`. Typically, when `reference_type` and `const storage_type&` are same type, this is an identity function.
 
-#### `{ MP::representation(s) }  -> std::same_as<const typename MP::representation_type &>`
+#### `{ representation(s) }  -> std::same_as<const typename MP::representation_type &>`
 
 Performs adjustments (if necessary) to represent the stored object through `representation_type`.
 
@@ -162,7 +162,7 @@ namespace ak_toolkit
 {
   namespace markable_ns
   {
-    template <mark_policy MP, template <typename, typename> class CP = order_none>
+    template <mark_policy MP, template <typename> class OP = order_none>
     class markable
     {
     public:
@@ -188,7 +188,6 @@ namespace ak_toolkit
 
       void assign_representation(representation_type&& s);
       void assign_representation(representation_type const& s);
-
 
     private:
       typename MP::storage_type val_; // exposition only
@@ -280,6 +279,39 @@ namespace ak_toolkit
 *Remarks:*  If an exception is thrown during the call to `storage_type`'s assignment,
  the state of `val_` is determined by the exception safety guarantee of `storage_type`’s
  assignment.
+
+
+### Relational operators
+
+Whether `markable` provides the six relational operations as well as `std::hash`
+specializations depends on ordering policy `OP`. This library comes with three
+policies:
+
+#### `order_none`
+
+No relational operators are provided. No `std::hash` specialization is provided.
+
+
+#### `order_by_value`
+
+Given two `markable`s `m1` and `m2` of type `markable<MP, order_by_value>`:
+
+`m1 == m2` <=> `!m1.has_value() ? !m2.has_value() : m2.has_value() && m1.value() == m2.value()`.
+
+`m1 < m2` <=> `!m2.has_value() ? false : (!m1.has_value() ? true : m1.value() < m2.value())`.
+
+
+#### `order_by_representation`
+
+Given two `markable`s `m1` and `m2` of type `markable<MP, order_by_representation>`:
+
+`m1 == m2` <=> `m1.representation_value() == !m2.representation_value()`.
+
+`m1 < m2` <=> `m1.representation_value() < !m2.representation_value()`.
+
+ *Remark:* If `m1 or `m2 (called `m` here) stores a value where
+ `!m.has_value() && m.representation_value() != MP::marked_value()`
+ the behavior is undefined.
 
 
 ### Exception safety
@@ -647,5 +679,9 @@ template <typename T>
   using default_markable = /* see below */;
 ```
 
-Type `default_markable<T>` is an alias for `markable<MP(T)>`, where `MP(T)`
+Type `default_markable<T>` is an alias for `markable<MP(T), order_by_value>`, where `MP(T)`
 is a marked-value policy with `value_type` same as `T`.
+
+*Caution:* The library tries to guess whet is the most suitable marked-value policy type `T`.
+However, the library may guess incorrectly, so while this is convenient, a safer
+usage would be to manually provide the marked-value policy.

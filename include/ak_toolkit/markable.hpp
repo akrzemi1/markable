@@ -429,14 +429,33 @@ struct markable_dual_storage_type : markable_dual_storage_type_unsafe<MPT, T, RE
   typedef void is_safe_dual_storage_mark_policy;
 };
 
+
 // ordering policies
 
-template <typename Markable, typename MP>
+template <typename Markable>
 class order_none {};
 
-template <typename Markable, typename MP>
+template <AK_TOOLKIT_MARK_POLICY MP, template <typename> class CP = order_none>
+class markable;
+
+namespace detail_ {
+
+template <typename Markable>
+struct extract_mark_policy {};
+
+template <AK_TOOLKIT_MARK_POLICY MP, template <typename> class CP>
+struct extract_mark_policy<markable<MP, CP>>
+{
+  typedef MP type;
+};
+
+} // namespace detail_
+
+
+template <typename Markable>
 class order_by_representation
 {
+  typedef typename detail_::extract_mark_policy<Markable>::type MP;
   static const typename MP::representation_type& representation(); // for decltype only
   static const Markable& m(const order_by_representation& o) noexcept { return static_cast<const Markable&>(o); }
 
@@ -489,9 +508,10 @@ public:
     }
 };
 
-template <typename Markable, typename MP>
+template <typename Markable>
 class order_by_value
 {
+  typedef typename detail_::extract_mark_policy<Markable>::type MP;
   static const Markable& m(const order_by_value& o) noexcept { return static_cast<const Markable&>(o); }
   static typename MP::reference_type value(); // for decltype only
 
@@ -535,8 +555,8 @@ public:
 
 
 
-template <AK_TOOLKIT_MARK_POLICY MP, template <typename, typename> class CP = order_none>
-class markable : public CP<markable<MP, CP>, MP>
+template <AK_TOOLKIT_MARK_POLICY MP, template <typename> class CP>
+class markable : public CP<markable<MP, CP>>
 {
   // The following assert is only in case a safe dual storage is used.
   // It then checks if the value_type is nothrow move constructible.
@@ -630,7 +650,7 @@ struct default_mark_policy<T, typename std::enable_if<std::is_enum<T>::value>::t
 #endif
 
 template <typename T>
-using default_markable = markable<typename default_mark_policy<T>::type>;
+using default_markable = markable<typename default_mark_policy<T>::type, order_by_value>;
 
 
 } // namespace markable_ns
