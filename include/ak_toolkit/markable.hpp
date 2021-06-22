@@ -107,13 +107,14 @@ concept mark_policy =
 
 struct default_tag{};
 
-template <typename T, typename NT = T, typename CREF = const T&, typename REPT = NT>
+template <typename T, typename REPT = T, typename CREF = const T&, typename STOR = REPT>
 struct markable_type
 {
   typedef T    value_type;          // the type we claim we (optionally) store
-  typedef NT   storage_type;        // the type we use for storage
-  typedef CREF reference_type;      // the type that we return upon "dereference"
   typedef REPT representation_type; // the type we use to represent the marked state
+  typedef CREF reference_type;      // the type that we return upon "dereference"
+  typedef STOR storage_type;        // the type we use for storage
+
 
   static AK_TOOLKIT_CONSTEXPR reference_type access_value(const storage_type& v) { return reference_type(v); }
   static AK_TOOLKIT_CONSTEXPR const representation_type& representation(const storage_type& v) { return v; }

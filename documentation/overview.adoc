@@ -34,9 +34,9 @@ opt_int oN {-1}; // internal value initialized to -1
 
 There are also three observer functions:
 
- * `has_value` that checks if the currently stored value is that indicated in the _marked-value policy_ (MP);
- * `value` that extracts the stored value, with the precondition that the value is different than the one indicated in (MP);
- * `storage_value` that extracts the value as stored internally, with no precondition.
+ * `has_value()` that checks if the currently stored value is that indicated in the _marked-value policy_ (`MP`);
+ * `value` that extracts the stored value, with the precondition that the value is different than the one indicated in `MP`;
+ * `representation_value` that extracts the value as stored internally, with no precondition.
 
 ```c++
 // continuing the previous example
@@ -48,61 +48,66 @@ assert (o0.value() == 0);
 // oi.value() is UB
 // oN.value() is UB
 
-assert (oi.storage_value() == -1);
-assert (o0.storage_value() ==  0);
-assert (oN.storage_value() == -1);
+assert (oi.representation_value() == -1);
+assert (o0.representation_value() ==  0);
+assert (oN.representation_value() == -1);
 ```
 
-As you can see, there are two ways to set the special marked value: either by default construction,
-or by providing it explicitly.
+As you can see, there are two ways to set the special marked value: either by
+default construction, or by providing it explicitly.
 
-It is not possible to change the stored value through function `value()`: it returns a non-mutable reference or value (based on the policy).
+It is not possible to change the stored value through function `value()`:
+it returns a non-mutable reference or value (based on the policy).
 
-There are no relational operations provided by default, as it is not obvious how a no-value should compare against other values.
-If you want to compare them, you need to provide a custom comparator, where you explicitly state how the marked state is treated, or you can select comparison policy in the second template parameter.
-
-There is no way to 'reset' the optional object other than to move-assign a new value:
+In order to 'reset' the optional object you can either move-assign a new value,
+or use `assign` member functions:
 
 ```c++
 // continuing the previous example
-o0 = {};         // reset to marked value
-oN = opt_int{2}; // new value
+o0 = {};                      // reset to marked value
+oN = opt_int{2};              // new value
+
+o0.assign(2);                 // assign value 2
+oN.assign_representaiton(2);  // also results in value 2
+oN.assign_representation(-1); // results in no-value state
 ```
 
 Each instance of `markable` also provides three nested types:
 
  * `value_type` - value we want to represent,
  * `reference_type` - what function `value` returns: in most cases it is `const value_type&`,
- * `storage_type` - type of the value that is used for storage: in most of the cases it is same as `value_type`.
+ * `representation_type` - type of the value that is used for representing values and the no-value: in most of the cases it is same as `value_type`.
 
 
-### Storage value
+### Representation value
 
-Objects of type `markable<MP>` actually store an object of type `MP::storage_type`.
-Sometimes this type is same as `MP::value_type` but it is not the rule. For instance,
-when representing optional enum class `E` with underlying type `int`, `MP::value_type`
-is `E` whereas `MP::storage_type` is `int`:
+The type of the object that `markable<MP>` uses for representing the value
+or the information about the lack of value is `MP::representaiton_type`.
+Sometimes this type is same as `MP::value_type` but it is not the rule.
+For instance, when representing optional enum class `E` with underlying type
+`int`, `MP::value_type` is `E` whereas `MP::representation_type` is `int`:
 
 ```c++
 enum class E { V0, V1 };
 
 using OptE = markable<mark_enum<E, -1>>;
 static_assert(std::is_same_v<OptE::value_type, E>);
-static_assert(std::is_same_v<OptE::storage_type, int>);
+static_assert(std::is_same_v<OptE::representation_type, int>);
 ```
 
-`markable<MP>` always stores a value of type `MP::storage_type`:
+Whatever value, or the no-value, `markable<MP>` stores, it is always
+representable as a value of type `MP::representation_type`:
 
 ```c++
 OptE o;
-assert(o.storage_value() == -1);
+assert(o.representation_value() == -1);
 
-o.assign_storage(1);
-assert(o.storage_value() == 1);
+o.assign_representation(1);
+assert(o.representation_value() == 1);
 ```
 
-In addition to that, the storage can represent an empty or a non-empty optional
-value:
+A representation value can always be reinterpreted as a (potentially missing)
+value.
 
 ```c++
 OptE o;
@@ -114,12 +119,15 @@ assert(o.value() == E::V1);
 ```
 
 Thus, `markable<MP>` provides two interfaces: one for modifying and observing the
-`MP::value_type`, and the other for modifying and observing the `MP::storage_type`.
+(possibly missing) `MP::value_type`, and the other for modifying and observing
+ the (always present) `MP::representation_type`.
 
 
 ## Marked-value policies
 
-What type is being stored and how the marked value is encoded is controlled by _marked-value policy_. You can either define your own, or use one of the policies provided with this library:
+What type is being stored and how the marked value is encoded is controlled by
+_marked-value policy_. You can either define your own, or use one of the
+policies provided with this library:
 
 ### mark_int
 
@@ -132,6 +140,7 @@ Can be used with all types that can be used as template non-type parameters, inc
 `Integral` represents the stored type.
 
 `EV` is the marked value representation.
+
 
 ### mark_fp_nan
 
@@ -241,13 +250,13 @@ struct compact_bool_policy : markable_type<bool, char, bool> // see below
 
 The three types passed to `markable_type` denote respectively:
 
-1. `value_type` -- the type we are modelling.
-2. `storage_type` -- the type we use to store the values internally.
-3. `reference_type` -- what type function `value` should return.
+1. `value_type` -- the type we are modeling.
+2. `representation_type` -- the type we use to internally represent all values plus the no-value state.
+3. `reference_type` -- what type function `value()` should return.
 
-Class template `markable_type` also provides the fourth type: `representation_type`,
-which in this case defaults to `storage_type`. Because function `value()` should return a `bool`
-and we are storing no `bool` we have to create a temporary value,
+Class template `markable_type` also provides the fourth type: `storage_type`,
+which in this case defaults to `representation_type`. Because function `value()`
+should return a `bool` and we are storing no `bool` we have to create a temporary value,
 and return it by value: therefore type `reference_type` is not really a reference.
 
 
@@ -272,6 +281,10 @@ It is possible that the default policy selection will create an ill-formed type.
 Also, note that the policy selected by default may not work for your use case.
 Manual policy selection might be preferred, because you are in control of
 what is actually selected.
+
+`default_markable` also selects `order_by_value` as the ordering policy. This is
+slightly slower, but safer than and sometimes more intuitive than
+`order_by_representation`.
 
 
 ### Using dual storage for marking values
@@ -337,7 +350,7 @@ struct mark_range : markable_dual_storage_type<mark_range, range, range_represen
 ```
 
 The first argument is the type of the policy we are defining. (We are using the CRTP.)
-The second is the logical value type, and the third is itd "raw" layout-compatible conterpart.
+The second is the logical value type, and the third is its "raw" layout-compatible conterpart.
 
 WARNING: However, there is a certain danger involved when using dual storage.
 Types `T` and `DualT` passed to `markable_dual_storage_type` need to preserve certain relation:
@@ -379,27 +392,58 @@ If either of the functions is not `noexcept` in your case but you still want to 
 
 ## Relational operators
 
-By default `markable` objects are not equally comparable. In order to make them comparable, you have to first decide how you want the mark values (there can be more than one mark value) to compare relative to other values. If you want any marked value to compare equal to any other marked value and compare unequal to any non-marked value, use comparison policy `cmp_by_value_eq`:
+There are no relational operations provided by default, as it is not obvious
+how the no-value should compare against other values. If you need to compare
+markable values, you have two options:
+
+ * provide a custom comparator, where you explicitly state how the marked
+   state is treated, or
+ * select ordering policy in the second template parameter to `markable`.
+
+This library offers three ordering policies, for rel-ops and `std::hash`:
+
+ * `order_none` (the default), no relational operators or `std`.
+ * `order_by_value`, where marked-value is treated as the smallest possible value, distinct from any other value (much like in `boost::optional`).
+ * `order_by_representation`, where marked values are ordered by their representation.
+
+```c++
+using markable_int = markable<
+                       mark_int<int, INT_MAX>,  // marked-value policy
+                       order_by_value           // ordering policy
+                     >;
+
+markable_int mX{}, m0{0};
+assert(m0 == m0);
+assert(mX < m0);
+assert(std::hash<markable_int>{}(m0) == std::hash<int>(0));
+```
+
+Ordering includes not only the six relational operators, but also the specializations
+of `std::hash`.
+
+Ordering policy `order_by_value` is a good safe default. It is slower than
+`order_by_representation` because it has to perform a branch, but it works well
+with marked-value policies that mark more than one representation state:
 
 ```c++
 struct mark_negative : markable_type<int>
 {
   static bool is_marked_value(const int& v) { return v < 0; } // any negative value is marked
-  static int marked_value() { return -1; }
+  static int marked_value() { return -1; }                    // but we can set only one: -1
 };
 
-using opt_nonnegative_int = markable<mark_negative, cmp_by_value_eq>;
-assert (opt_nonnegative_int{} == opt_nonnegative_int{-2});
+using opt_int_A = markable<mark_negative, order_by_value>;
+assert (opt_int_A{} == opt_int_A{-2});                        // ok
+
+using opt_int_B = markable<mark_negative, order_by_representation>;
+assert (opt_int_B{} == opt_int_B{-1});                        // ok
+assert (opt_int_B{} == opt_int_B{-2});                        // UB
 ```
 
-If you want to compare `markable` objects by simply comparing their storage values (which is likely faster, but different marked values compare unequal), use comparoison policy `cmp_by_storage`:
-
-```c++
-using opt_nonnegative_int = markable<mark_negative, cmp_by_storage>;
-assert (opt_nonnegative_int{} != opt_nonnegative_int{-2});
-```
-
-If you do not want your `markable` types to be comparable, do not provide the second parameter, or use comparison policy `cmp_none`.
+If you are using marked-value policy that marks more than one state, and use
+`order_by_representation` ordering policy, you have to make sure that the
+when comparing two such markables, if their state is marked, its representation
+must be exactly `MP::marked_value()`. Otherwise, you will get UB (Undefined Behavior).
 
 
 ## Opaque-typedefed markables
@@ -462,7 +506,3 @@ In a way, `boost::optional<T>` can be thought as link:http://www.boost.org/doc/l
 In general, it is expected that in the first pass of the implementation of your program, you will use `boost::optional<T>` as a simple ready-to-use solution. Later, if you determine that `boost::optional` kills your performance, you can think of replacing it with `markable` and how you want to represent the no-value state.
 
 Another use case is when you are currently using objects of scalar types with encoded special values (like type `std::string::size_type` with value `std::string::npos`) and you want to change it into something safer but be sure you are adding no runtime overhead. You can change your type to `markable<mark_int<string::size_type, string::npos>>`.
-
-## Future plans
-
-Provide relational operations upon request.
