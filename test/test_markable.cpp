@@ -876,12 +876,8 @@ void test_dual_storage_with_tuple_init_state_mutation()
 
 namespace most_hostile_types {
 
-  struct Val { int v; };
-  struct Ref { int const* v; };
-  struct Rep { int v; };
-  struct Store { Val val; Rep rep; };
-
-  struct mark_hostile
+  template <typename Val, typename Ref, typename Rep, typename Store>
+  struct mark_hostile_for
   {
     using value_type = Val;
     using reference_type = Ref;
@@ -899,13 +895,13 @@ namespace most_hostile_types {
     static storage_type store_representation(representation_type&& v) { return Store{0, v.v}; }
   };
 
-# if defined AK_TOOLKIT_WITH_CONCEPTS
-static_assert(mark_policy<mark_hostile>, "mark_policy test failed");
-# endif
-
-  void test()
+  template <typename MP, typename OP>
+  void test_interface_for()
   {
-    markable<mark_hostile> mh1, mh2{Val{1}};
+    using Rep = typename markable<MP, OP>::representation_type;
+    using Val = typename markable<MP, OP>::value_type;
+
+    markable<MP, OP> mh1, mh2{Val{1}};
     const Rep rep{2};
     const Val val{2};
     mh1 = mh2;
@@ -919,6 +915,108 @@ static_assert(mark_policy<mark_hostile>, "mark_policy test failed");
     mh2.assign_representation(rep);
 
     swap(mh1, mh2);
+  }
+
+  template <typename MP, typename OP>
+  void test_interface_with_relops_for()
+  {
+    using Val = typename markable<MP, OP>::value_type;
+
+    test_interface_for<MP, OP>();
+    markable<MP, OP> mh1, mh2{Val{1}};
+    bool b = false;
+    b = (mh1 < mh2);
+    b = (mh1 > mh2);
+    b = (mh1 <= mh2);
+    b = (mh1 >= mh2);
+    b = (mh1 == mh2);
+    b = (mh1 != mh2);
+    (void)b;
+  }
+
+  struct order_custom
+  {
+    template <typename M>
+    static bool equal(const M&, const M&) { return true; }
+
+    template <typename M>
+    static bool less(const M&, const M&) { return false; }
+  };
+
+  namespace with_order_none
+  {
+    struct Val { int v; };
+    struct Ref { int const* v; };
+    struct Rep { int v; };
+    struct Store { Val val; Rep rep; };
+
+    using mark_hostile = mark_hostile_for<Val, Ref, Rep, Store>;
+
+    void test()
+    {
+      test_interface_for<mark_hostile, order_none>();
+      test_interface_with_relops_for<mark_hostile, order_custom>();
+      test_interface_for<mark_hostile, order_by_value>();
+      test_interface_for<mark_hostile, order_by_representation>();
+    }
+  }
+
+  namespace with_order_by_value
+  {
+    struct Val { int v; };
+    struct Ref { int const* v; };
+    struct Rep { int v; };
+    struct Store { Val val; Rep rep; };
+
+    bool operator==(Ref, Ref) { return true; }
+    bool operator<(Ref, Ref) { return false; }
+
+    using mark_hostile = mark_hostile_for<Val, Ref, Rep, Store>;
+
+    void test()
+    {
+      test_interface_for<mark_hostile, order_none>();
+      test_interface_with_relops_for<mark_hostile, order_custom>();
+      test_interface_with_relops_for<mark_hostile, order_by_value>();
+      test_interface_for<mark_hostile, order_by_representation>();
+    }
+  }
+
+  namespace with_order_by_representation
+  {
+    struct Val { int v; };
+    struct Ref { int const* v; };
+    struct Rep { int v; };
+    struct Store { Val val; Rep rep; };
+
+    bool operator==(Rep, Rep) { return true; }
+    bool operator<(Rep, Rep) { return false; }
+
+    using mark_hostile = mark_hostile_for<Val, Ref, Rep, Store>;
+
+    void test()
+    {
+      test_interface_for<mark_hostile, order_none>();
+      test_interface_with_relops_for<mark_hostile, order_custom>();
+      test_interface_for<mark_hostile, order_by_value>();
+      test_interface_with_relops_for<mark_hostile, order_by_representation>();
+    }
+  }
+
+
+
+# if defined AK_TOOLKIT_WITH_CONCEPTS
+static_assert(mark_policy<with_order_none::mark_hostile>, "mark_policy test failed");
+static_assert(mark_policy<with_order_by_value::mark_hostile>, "mark_policy test failed");
+static_assert(mark_policy<test_interface_with_relops_for::mark_hostile>, "mark_policy test failed");
+# endif
+
+
+  void test()
+  {
+    with_order_none::test();
+    with_order_by_value::test();
+    with_order_by_representation::test();
   }
 }
 

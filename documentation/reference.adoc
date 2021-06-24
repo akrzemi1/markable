@@ -16,7 +16,7 @@ namespace ak_toolkit
 {
   namespace markable_ns
   {
-    template <typename MP, template <typename, typename> class OP = order_none>
+    template <typename MP, typename OP = order_none>
       class markable;
 
     void swap(markable & l, markable & r);
@@ -59,14 +59,29 @@ namespace ak_toolkit
     template <typename T>
       struct representation_of;
 
-    template <typename Markable>
-      class order_none;
+    class order_none;
 
-    template <typename Markable>
-      class order_by_representation;
+    class order_by_representation;
 
-    template <typename Markable>
-      class order_by_value;
+    class order_by_value;
+
+    template <typename MP, typename OP>
+      bool operator==(const markable<MP, OP>& l, const markable<MP, OP>& r);
+
+    template <typename MP, typename OP>
+      bool operator!=(const markable<MP, OP>& l, const markable<MP, OP>& r);
+
+    template <typename MP, typename OP>
+      bool operator<(const markable<MP, OP>& l, const markable<MP, OP>& r);
+
+    template <typename MP, typename OP>
+      bool operator>(const markable<MP, OP>& l, const markable<MP, OP>& r);
+
+    template <typename MP, typename OP>
+      bool operator<=(const markable<MP, OP>& l, const markable<MP, OP>& r);
+
+    template <typename MP, typename OP>
+      bool operator>=(const markable<MP, OP>& l, const markable<MP, OP>& r);
 
     template <typename T>
       using default_markable = /* see below */;
@@ -162,7 +177,7 @@ namespace ak_toolkit
 {
   namespace markable_ns
   {
-    template <mark_policy MP, template <typename> class OP = order_none>
+    template <mark_policy MP, typename OP = order_none>
     class markable
     {
     public:
@@ -283,33 +298,107 @@ namespace ak_toolkit
 
 ### Relational operators
 
-Whether `markable` provides the six relational operations as well as `std::hash`
-specializations depends on ordering policy `OP`. This library comes with three
-policies:
+#### `template <typename MP, typename OP> <br/>  bool operator==(const markable<MP, OP>& l, const markable<MP, OP>& r);`
+
+*constraints:* `OP::equal(l, r)` is a valid expression.
+
+*Returns:* `OP::equal(l, r)`.
+
+
+
+#### `template <typename MP, typename OP> <br/>  bool operator!=(const markable<MP, OP>& l, const markable<MP, OP>& r);`
+
+*constraints:* `OP::equal(l, r)` is a valid expression.
+
+*Returns:* `!OP::equal(l, r)`.
+
+
+
+#### `template <typename MP, typename OP> <br/>  bool operator<(const markable<MP, OP>& l, const markable<MP, OP>& r);``
+
+*constraints:* `OP::less(l, r)` is a valid expression.
+
+*Returns:* `OP::less(l, r)`.
+
+
+
+#### `template <typename MP, typename OP> <br/>  bool operator>(const markable<MP, OP>& l, const markable<MP, OP>& r);`
+
+*constraints:* `OP::less(l, r)` is a valid expression.
+
+*Returns:* `OP::less(r, l)`.
+
+
+
+#### `template <typename MP, typename OP> <br/>  bool operator<=(const markable<MP, OP>& l, const markable<MP, OP>& r);``
+
+*constraints:* `OP::less(l, r)` is a valid expression.
+
+*Returns:* `!OP::less(r, l)`.
+
+
+#### `template <typename MP, typename OP> <br/>  bool operator>=(const markable<MP, OP>& l, const markable<MP, OP>& r);``
+
+*constraints:* `OP::less(l, r)` is a valid expression.
+
+*Returns:* `!OP::less(l, r)`.
+
+
+### Ordering policies
 
 #### `order_none`
 
-No relational operators are provided. No `std::hash` specialization is provided.
+```c++
+class order_none {};
+```
 
 
 #### `order_by_value`
 
-Given two `markable`s `m1` and `m2` of type `markable<MP, order_by_value>`:
+```c++
+class order_by_value
+{
+public:
+  template <typename MP, typename OP>
+  static auto equal(const markable<MP, OP>& l, const markable<MP, OP>& r)
+    -> decltype(l.value() == r.value())
+    {
+      return !l.has_value() ? !r.has_value() : r.has_value() && l.value() == r.value();
+    }
 
-`m1 == m2` is equivalent to `!m1.has_value() ? !m2.has_value() : m2.has_value() && m1.value() == m2.value()`.
-
-`m1 < m2` is equivalent to `!m2.has_value() ? false : (!m1.has_value() ? true : m1.value() < m2.value())`.
+  template <typename MP, typename OP>
+  static auto less(const markable<MP, OP>& l, const markable<MP, OP>& r)
+    -> decltype(l.value() < r.value())
+    {
+      return !r.has_value() ? false : (!l.has_value() ? true : l.value() < r.value());
+    }
+};
+```
 
 
 #### `order_by_representation`
 
-Given two `markable`s `m1` and `m2` of type `markable<MP, order_by_representation>`:
+```c++
+class order_by_representation
+{
+public:
+  template <typename MP, typename OP>
+  static auto equal(const markable<MP, OP>& l, const markable<MP, OP>& r)
+    -> decltype(l.representation_value() == r.representation_value())
+    {
+      return l.representation_value() == r.representation_value();
+    }
 
-`m1 == m2` is equivalent to `m1.representation_value() == !m2.representation_value()`.
+  template <typename MP, typename OP>
+  static auto less(const markable<MP, OP>& l, const markable<MP, OP>& r)
+    -> decltype(l.representation_value() < r.representation_value())
+    {
+      return l.representation_value() < r.representation_value();
+    }
+};
+```
 
-`m1 < m2` is equivalent to `m1.representation_value() < !m2.representation_value()`.
-
-*Remark:* If `m1` or `m2` (called `m` here) stores a value where
+*Remark:* If `l` or `r` (called `m` here) stores a value where
 `!m.has_value() && m.representation_value() != MP::marked_value()`
 the behavior is undefined.
 

@@ -67,11 +67,15 @@ static_assert (sizeof(opt_bool) == 1, "");
 
 For additional motivation and overview see this post: https://akrzemi1.wordpress.com/2015/07/15/efficient-optional-values/.
 
+
 ## Acknowledgments
 
 The idea of encoding the policy for determining the marked state in a template parameter has been proposed by Vitali Lovich (see https://groups.google.com/a/isocpp.org/d/topic/std-proposals/46J1onhWJ-s/discussion).
 
 Matt Calabrese and Tomasz Kami&#324;ski suggested the raw-storage representation for holding optional types with strong invariants.
+
+Kyrylo Bohdanenko suggested the simple and elegant interface for ordering policies.
+
 
 ## License
 Distributed under the [Boost Software License, Version 1.0](http://www.boost.org/LICENSE_1_0.txt).

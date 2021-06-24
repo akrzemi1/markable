@@ -445,6 +445,26 @@ If you are using marked-value policy that marks more than one state, and use
 when comparing two such markables, if their state is marked, its representation
 must be exactly `MP::marked_value()`. Otherwise, you will get UB (Undefined Behavior).
 
+It is also possible to define a custom ordering policy:
+
+```c++
+struct order_custom
+{
+  template <typename Markable>
+  static bool equal(const Markable& l, const Markable& r) { // enables operators == and !=
+    // your implementation goes here
+  }
+
+  template <typename Markable>
+  static bool less(const Markable& l, const Markable& r) { // enables operators <, >, <=, >=
+    // your implementation goes here
+  }
+};
+
+using opt_int = markable<mark_int<int, -1>, order_custom>;
+```
+
+
 
 ## Opaque-typedefed markables
 
