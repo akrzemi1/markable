@@ -298,7 +298,7 @@ namespace ak_toolkit
 
 ### Relational operators
 
-#### `template <typename MP, typename OP> <br/>  bool operator==(const markable<MP, OP>& l, const markable<MP, OP>& r);`
+#### `bool operator==(const markable<MP, OP>& l, const markable<MP, OP>& r);`
 
 *constraints:* `OP::equal(l, r)` is a valid expression.
 
@@ -306,7 +306,7 @@ namespace ak_toolkit
 
 
 
-#### `template <typename MP, typename OP> <br/>  bool operator!=(const markable<MP, OP>& l, const markable<MP, OP>& r);`
+#### `bool operator!=(const markable<MP, OP>& l, const markable<MP, OP>& r);`
 
 *constraints:* `OP::equal(l, r)` is a valid expression.
 
@@ -314,7 +314,7 @@ namespace ak_toolkit
 
 
 
-#### `template <typename MP, typename OP> <br/>  bool operator<(const markable<MP, OP>& l, const markable<MP, OP>& r);``
+#### `bool operator<(const markable<MP, OP>& l, const markable<MP, OP>& r);``
 
 *constraints:* `OP::less(l, r)` is a valid expression.
 
@@ -322,7 +322,7 @@ namespace ak_toolkit
 
 
 
-#### `template <typename MP, typename OP> <br/>  bool operator>(const markable<MP, OP>& l, const markable<MP, OP>& r);`
+#### `bool operator>(const markable<MP, OP>& l, const markable<MP, OP>& r);`
 
 *constraints:* `OP::less(l, r)` is a valid expression.
 
@@ -330,14 +330,14 @@ namespace ak_toolkit
 
 
 
-#### `template <typename MP, typename OP> <br/>  bool operator<=(const markable<MP, OP>& l, const markable<MP, OP>& r);``
+#### `bool operator<=(const markable<MP, OP>& l, const markable<MP, OP>& r);``
 
 *constraints:* `OP::less(l, r)` is a valid expression.
 
 *Returns:* `!OP::less(r, l)`.
 
 
-#### `template <typename MP, typename OP> <br/>  bool operator>=(const markable<MP, OP>& l, const markable<MP, OP>& r);``
+#### `bool operator>=(const markable<MP, OP>& l, const markable<MP, OP>& r);``
 
 *constraints:* `OP::less(l, r)` is a valid expression.
 
