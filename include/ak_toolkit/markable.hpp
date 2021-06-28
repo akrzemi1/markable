@@ -22,12 +22,14 @@
 #  define AK_TOOLKIT_NOEXCEPT
 #  define AK_TOOLKIT_IS_NOEXCEPT(E) true
 #  define AK_TOOLKIT_CONSTEXPR
+#  define AK_TOOLKIT_CONSTEXPR_OR_CONST const
 #  define AK_TOOLKIT_EXPLICIT_CONV
 #  define AK_TOOLKIT_NOEXCEPT_AS(E)
 #else
 #  define AK_TOOLKIT_NOEXCEPT noexcept
 #  define AK_TOOLKIT_IS_NOEXCEPT(E) noexcept(E)
 #  define AK_TOOLKIT_CONSTEXPR constexpr
+#  define AK_TOOLKIT_CONSTEXPR_OR_CONST constexpr
 #  define AK_TOOLKIT_EXPLICIT_CONV explicit
 #  define AK_TOOLKIT_NOEXCEPT_AS(E) noexcept(noexcept(E))
 #  define AK_TOOLKIT_CONSTEXPR_NOCONST // fix in the future
@@ -120,7 +122,7 @@ struct markable_type
   static AK_TOOLKIT_CONSTEXPR const representation_type& representation(const storage_type& v) { return v; }
   static AK_TOOLKIT_CONSTEXPR const storage_type& store_value(const value_type& v) { return v; }
   static AK_TOOLKIT_CONSTEXPR storage_type&& store_value(value_type&& v) { return std::move(v); }
-  static AK_TOOLKIT_CONSTEXPR storage_type&& store_representation(const representation_type& v) { return v; }
+  static AK_TOOLKIT_CONSTEXPR const storage_type& store_representation(const representation_type& v) { return v; }
   static AK_TOOLKIT_CONSTEXPR storage_type&& store_representation(representation_type&& v) { return std::move(v); }
 };
 
@@ -488,6 +490,12 @@ public:
     }
 };
 
+struct with_representation_t
+{
+  AK_TOOLKIT_CONSTEXPR explicit with_representation_t() {}
+};
+AK_TOOLKIT_CONSTEXPR_OR_CONST with_representation_t with_representation {};
+
 
 template <AK_TOOLKIT_MARK_POLICY MP, typename OP>
 class markable
@@ -515,6 +523,12 @@ public:
 
   AK_TOOLKIT_CONSTEXPR explicit markable(value_type&& v)
     : _storage(MP::store_value(std::move(v))) {}
+
+  AK_TOOLKIT_CONSTEXPR explicit markable(with_representation_t, const representation_type& r)
+    : _storage(MP::store_representation(r)) {}
+
+  AK_TOOLKIT_CONSTEXPR explicit markable(with_representation_t, representation_type&& r)
+    : _storage(MP::store_representation(::std::move(r))) {}
 
   AK_TOOLKIT_CONSTEXPR bool has_value() const {
   	return !MP::is_marked_value(MP::representation(_storage));
@@ -648,7 +662,8 @@ using markable_ns::order_none;
 using markable_ns::order_by_representation;
 using markable_ns::order_by_value;
 using markable_ns::default_markable;
-
+using markable_ns::with_representation;
+using markable_ns::with_representation_t;
 
 # if defined AK_TOOLKIT_WITH_CONCEPTS
 

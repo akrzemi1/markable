@@ -31,3 +31,4 @@ Initial version.
 
  * Provided equality comparisons as policy.
  * Added `default_markable<T>` for selecting a default marked-value policy for a given `T`.
+ * Added constructor from representation value.

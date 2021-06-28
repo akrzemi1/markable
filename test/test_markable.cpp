@@ -1020,6 +1020,86 @@ static_assert(mark_policy<test_interface_with_relops_for::mark_hostile>, "mark_p
   }
 }
 
+namespace nested_markable
+{
+  struct mark_markable_bool : markable_type<markable<mark_bool>, char, markable<mark_bool>>
+  {
+    static representation_type marked_value() { return char(4); }
+    static bool is_marked_value(const representation_type& v) { return v == 4; }
+
+    static value_type access_value(const storage_type& v) { return value_type(with_representation, v); }
+    static storage_type store_value(const value_type& v) { return v.representation_value(); }
+  };
+
+  using optopt_bool = markable<mark_markable_bool>;
+
+  void test_opt_opt_bool()
+  {
+    static_assert(sizeof(optopt_bool) == sizeof(char), "excessive size");
+    optopt_bool oob {};
+    assert(!oob.has_value());
+    assert(char(4) == oob.representation_value());
+
+    markable<mark_bool> ob {};
+    assert(char(2) == ob.representation_value());
+    assert(!ob.has_value());
+
+    oob.assign(ob);
+    assert(oob.has_value());
+    assert(!oob.value().has_value());
+    assert(char(2) == oob.representation_value());
+
+    oob.assign(markable<mark_bool>{true});
+    assert(oob.has_value());
+    assert(oob.value().has_value());
+    assert(oob.value().value() == true);
+    assert(char(1) == oob.representation_value());
+  }
+
+
+  using opt_int = markable<mark_int<int, -1>>;
+  struct mark_minus_2 : markable_type<opt_int, int, opt_int>
+  {
+    static representation_type marked_value() { return -2; }
+    static bool is_marked_value(const representation_type& v) { return v == -2; }
+
+    static value_type access_value(const storage_type& v) { return value_type(with_representation, v); }
+    static storage_type store_value(const value_type& v) { return v.representation_value(); }
+  };
+
+  using optopt_int = markable<mark_minus_2>;
+
+  void test_opt_opt_int()
+  {
+    static_assert(sizeof(optopt_int) == sizeof(int), "excessive size");
+    optopt_int ooi {};
+    assert(!ooi.has_value());
+    assert(-2 == ooi.representation_value());
+
+
+    opt_int oi {};
+    assert(-1 == oi.representation_value());
+    assert(!oi.has_value());
+
+    ooi.assign(oi);
+    assert(ooi.has_value());
+    assert(!ooi.value().has_value());
+    assert(-1 == ooi.representation_value());
+
+    ooi.assign(opt_int{1});
+    assert(ooi.has_value());
+    assert(ooi.value().has_value());
+    assert(ooi.value().value() == true);
+    assert(1 == ooi.representation_value());
+  }
+
+  void test()
+  {
+    test_opt_opt_bool();
+    test_opt_opt_int();
+  }
+}
+
 int main()
 {
   test_value_ctor();
@@ -1047,4 +1127,5 @@ int main()
   test_dual_storage_with_tuple_copy_ctor();
   test_dual_storage_with_tuple_init_state_mutation();
   most_hostile_types::test();
+  nested_markable::test();
 }

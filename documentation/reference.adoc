@@ -85,6 +85,9 @@ namespace ak_toolkit
 
     template <typename T>
       using default_markable = /* see below */;
+
+    struct with_representation_t;
+    constexpr with_representation_t with_representation {};
   }
 
   using markable_ns::markable;
@@ -102,6 +105,8 @@ namespace ak_toolkit
   using markable_ns::order_by_representation;
   using markable_ns::order_by_value;
   using markable_ns::default_markable;
+  using markable_ns::with_representation;
+  using markable_ns::with_representation_t;
 }
 ```
 
@@ -188,6 +193,8 @@ namespace ak_toolkit
       constexpr markable() noexcept(noexcept(storage_type{MP::marked_value{}}));
       constexpr explicit markable(const value_type& v);
       constexpr explicit markable(value_type&& v);
+      constexpr explicit markable(with_representation_t, const representation_type& r);
+      constexpr explicit markable(with_representation_t, representation_type&& r);
       constexpr markable(const markable&) = default;
       constexpr markable(markable&&) = default;
 
@@ -228,6 +235,20 @@ namespace ak_toolkit
 *Effects:* Initializes storage value with expression `MP::store_value(std::move(v))`.
 
 *Postconditions:* `has_value() == !MP::is_marked_value(v)`.
+
+#### `markable(with_representation_t, const representation_type& r)`
+
+*Effects:* Initializes storage value with expression `MP::store_representation(r)`.
+
+*Postconditions:* `representation_value() == r`.
+
+
+#### `markable(with_representation_t, representation_type&& r)`
+
+*Effects:* Initializes storage value with expression `MP::store_representation(std::move(r))`.
+
+*Postconditions:* `representation_value()` has the value that `r` had before the assignment.
+
 
 #### `reference_type has_value() const`
 
@@ -423,7 +444,7 @@ The following tools help build custom mark policies.
 This class template provides default definitions form most of the requirements in concept `mark_policy`. When declaring your own mark policy, you probably want to derive from this class template (although it is not strictly necessary).
 
 ```c++
-template <typename T, typename STORE = T, typename CREF = const T&, typename REPT = NT>
+template <typename T, typename REPT = T, typename CREF = const T&, typename STOR = REPT>
 struct markable_type
 {
   typedef T     value_type;
@@ -434,8 +455,8 @@ struct markable_type
   static constexpr reference_type access_value(const storage_type& v) { return v; }
   static constexpr const representation_type& representation(const storage_type& v) { return v; }
   static constexpr const value_type& store_value(const value_type& v) { return v; }
-  static constexpr value_type&& store_value(value_type&& v) { return std::move(v); }
-  static constexpr storage_type&& store_representation(const representation_type& v) { return v; }
+  static constexpr storage_type&& store_value(value_type&& v) { return std::move(v); }
+  static constexpr const storage_type& store_representation(const representation_type& v) { return v; }
   static constexpr storage_type&& store_representation(representation_type&& v) { return std::move(v); }
   };
 };
@@ -774,3 +795,11 @@ is a marked-value policy with `value_type` same as `T`.
 *Caution:* The library tries to guess whet is the most suitable marked-value policy type `T`.
 However, the library may guess incorrectly, so while this is convenient, a safer
 usage would be to manually provide the marked-value policy.
+
+
+###  `struct with_representation_t; constexpr with_representation_t with_representation {};``
+
+This is a tag class representing indicating that the argument that follows is to
+be interpreted as a representation type rather than value type.
+
+Class `with_representation_t` is not default-constructible.
