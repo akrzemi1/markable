@@ -402,7 +402,7 @@ markable values, you have two options:
 
 This library offers three ordering policies, for rel-ops and `std::hash`:
 
- * `order_none` (the default), no relational operators or `std`.
+ * `order_none` (the default), no relational operators or `std::hash`.
  * `order_by_value`, where marked-value is treated as the smallest possible value, distinct from any other value (much like in `boost::optional`).
  * `order_by_representation`, where marked values are ordered by their representation.
 
