@@ -441,16 +441,17 @@ template <AK_TOOLKIT_MARK_POLICY MP, typename OP = order_none>
 class markable;
 
 
+template <typename MP, typename OP>
+static bool unique_marked_value(const markable<MP, OP>& mk)
+{
+  // returns false if mk has no value but its storage is different
+  // than the MP::marked_value().
+  return mk.has_value() || mk.representation_value() == MP::marked_value();
+}
 
 class order_by_representation
 {
-  template <typename MP, typename OP>
-  static bool unique_marked_value(const markable<MP, OP>& mk)
-  {
-    // returns false if mk has no value but its storage is different
-    // than the MP::marked_value().
-    return mk.has_value() || mk.representation_value() == MP::marked_value();
-  }
+
 
 public:
   template <typename MP, typename OP>
@@ -464,6 +465,32 @@ public:
 
   template <typename MP, typename OP>
   static auto less(const markable<MP, OP>& l, const markable<MP, OP>& r)
+    -> decltype(l.representation_value() < r.representation_value())
+    {
+      assert(unique_marked_value(l));
+      assert(unique_marked_value(r));
+      return l.representation_value() < r.representation_value();
+    }
+};
+
+class equal_by_representation
+{
+public:
+  template <typename MP, typename OP>
+  auto operator()(const markable<MP, OP>& l, const markable<MP, OP>& r) const
+    -> decltype(l.representation_value() == r.representation_value())
+    {
+      assert(unique_marked_value(l));
+      assert(unique_marked_value(r));
+      return l.representation_value() == r.representation_value();
+    }
+};
+
+class less_by_representation
+{
+public:
+  template <typename MP, typename OP>
+  auto operator()(const markable<MP, OP>& l, const markable<MP, OP>& r) const
     -> decltype(l.representation_value() < r.representation_value())
     {
       assert(unique_marked_value(l));
@@ -488,6 +515,49 @@ public:
     {
       return !r.has_value() ? false : (!l.has_value() ? true : l.value() < r.value());
     }
+};
+
+class equal_by_value
+{
+public:
+  template <typename MP, typename OP>
+  auto operator()(const markable<MP, OP>& l, const markable<MP, OP>& r) const
+    -> decltype(l.value() == r.value())
+    {
+      return !l.has_value() ? !r.has_value() : r.has_value() && l.value() == r.value();
+    }
+};
+
+class less_by_value
+{
+public:
+  template <typename MP, typename OP>
+  auto operator()(const markable<MP, OP>& l, const markable<MP, OP>& r) const
+    -> decltype(l.value() < r.value())
+    {
+      return !r.has_value() ? false : (!l.has_value() ? true : l.value() < r.value());
+    }
+};
+
+class hash_by_representation
+{
+public:
+  template <typename MP, typename OP>
+  constexpr typename std::hash<typename MP::representation_type>::result_type
+  operator()(markable<MP, OP> const& arg) const {
+    return std::hash<typename MP::representation_type>{}(arg.representation_value());
+  }
+};
+
+
+struct hash_by_value
+{
+  template <typename MP, typename OP>
+  constexpr typename std::hash<typename MP::value_type>::result_type
+  operator()(markable<MP, OP> const& arg) const {
+    return arg.has_value() ? std::hash<typename MP::value_type>{}(arg.value())
+                           : typename std::hash<typename MP::value_type>::result_type{};
+  }
 };
 
 struct with_representation_t
@@ -661,6 +731,12 @@ using markable_ns::mark_enum;
 using markable_ns::order_none;
 using markable_ns::order_by_representation;
 using markable_ns::order_by_value;
+using markable_ns::less_by_representation;
+using markable_ns::less_by_value;
+using markable_ns::equal_by_representation;
+using markable_ns::equal_by_value;
+using markable_ns::hash_by_representation;
+using markable_ns::hash_by_value;
 using markable_ns::default_markable;
 using markable_ns::with_representation;
 using markable_ns::with_representation_t;
@@ -671,7 +747,7 @@ using markable_ns::mark_policy;
 
 static_assert(mark_policy<mark_bool>, "mark_policy test failed");
 static_assert(mark_policy<mark_int<int, 0>>, "mark_policy test failed");
-static_assert(mark_policy<mark_fp_nan<float>>, "mark_policy test failed");
+static_assert(mark_policy<mark_fp_nan<float>>, "m     ark_policy test failed");
 static_assert(mark_policy<mark_value_init<int>>, "mark_policy test failed");
 
 # endif

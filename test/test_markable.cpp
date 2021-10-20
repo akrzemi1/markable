@@ -11,6 +11,9 @@
 #include <cassert>
 #include <utility>
 #include <string>
+#include <vector>
+#include <algorithm>
+#include <unordered_set>
 
 
 
@@ -652,6 +655,15 @@ void test_default_markable()
   assert(bF.has_value());
 }
 
+void test_manual_cmp()
+{
+  using opt_int = markable<mark_int<int, -1>>;
+  std::vector<opt_int> v;
+  std::sort(v.begin(), v.end(), less_by_value{});
+  std::sort(v.begin(), v.end(), less_by_representation{});
+  std::unordered_set<opt_int, hash_by_representation> s;
+}
+
 // Test if comparison work for dual storage
 
 class TOD // Time Of Day
@@ -1128,4 +1140,5 @@ int main()
   test_dual_storage_with_tuple_init_state_mutation();
   most_hostile_types::test();
   nested_markable::test();
+  test_manual_cmp();
 }
