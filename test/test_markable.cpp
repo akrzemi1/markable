@@ -14,6 +14,7 @@
 #include <vector>
 #include <algorithm>
 #include <unordered_set>
+#include <set>
 
 
 
@@ -472,8 +473,19 @@ struct mark_negative : markable_type<int>
   static bool is_marked_value(const int& v) { return v < 0; }
 };
 
-template <typename T>
-void assert_correct_relation_between_relops(T a, T b)
+
+template <typename MP, typename OP, typename EQ>
+void assert_correct_eq_properties
+(markable<MP, OP> const& a, markable<MP, OP> const& b, EQ eq)
+{
+  assert( eq(a, b) ==  eq(b, a) );
+  assert( eq(a, a) == true );
+  assert( eq(b, b) == true );
+}
+
+template <typename MP, typename OP>
+void assert_correct_relation_between_relops
+  (markable<MP, OP> const& a, markable<MP, OP> const& b)
 {
   assert( (a == b) ==  (b == a) );
   assert( (a != b) ==  (b != a) );
@@ -657,11 +669,37 @@ void test_default_markable()
 
 void test_manual_cmp()
 {
+  struct mark_small_negative_int : markable_type<int>
+  {
+    constexpr static int marked_value() { return -1; }
+    constexpr static bool is_marked_value(const int& v) {
+      return v <= -1 && v >= -9;
+    }
+  };
   using opt_int = markable<mark_int<int, -1>>;
+  opt_int iNeg{-10}, iNul2{-2}, iNul1{}, i0{0}, iPos{1};
+
+  assert_correct_eq_properties(iNeg, iNeg, equal_by_value{});
+  assert_correct_eq_properties(iNeg, iNul2, equal_by_value{});
+  assert_correct_eq_properties(iNeg, iNul1, equal_by_value{});
+  assert_correct_eq_properties(iNeg, i0, equal_by_value{});
+  assert_correct_eq_properties(iNeg, iPos, equal_by_value{});
+
+  assert(!equal_by_representation{}(iNul2, iNul1));
+
+  assert(less_by_value{}(iNeg, i0));
+  assert(less_by_value{}(iNeg, iPos));
+  assert(less_by_value{}(iNul1, iNeg));
+  assert(!less_by_value{}(iNeg, iNul1));
+  assert(!less_by_value{}(iNeg, iNeg));
+  assert(!less_by_value{}(iNul1, iNul1));
+
   std::vector<opt_int> v;
   std::sort(v.begin(), v.end(), less_by_value{});
   std::sort(v.begin(), v.end(), less_by_representation{});
   std::unordered_set<opt_int, hash_by_representation> s;
+  std::set<opt_int, less_by_value> osv;
+  std::set<opt_int, less_by_representation> osr;
 }
 
 // Test if comparison work for dual storage

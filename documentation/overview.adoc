@@ -464,11 +464,22 @@ struct order_custom
 using opt_int = markable<mark_int<int, -1>, order_custom>;
 ```
 
+This library also comes with a set of predefined comparator objects, that can be
+used in STL containers and algorithms without having to make your `markable` type ordered:
+
+```c++
+using opt_int = markable<mark_int<int, -1>>; // not comparable
+
+std::set<opt_int, less_by_value>                    osv;
+std::set<opt_int, less_by_representation>           osr;
+std::unordered_set<opt_int, hash_by_value>          usv;
+std::unordered_set<opt_int, hash_by_representation> usr;
+```
 
 
 ## Opaque-typedefed markables
 
-Because `markable` uses policies, you can get the opaque typedef for your markable types for free.
+Because `markable` uses policies, you can get the opaque `typedef` for your markable types for free.
 
 Suppose you have two conceptually different types `Count` and `Num`, but because they are markable types using the same policy, they end um being one and the same type:
 

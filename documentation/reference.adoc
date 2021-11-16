@@ -83,6 +83,14 @@ namespace ak_toolkit
     template <typename MP, typename OP>
       bool operator>=(const markable<MP, OP>& l, const markable<MP, OP>& r);
 
+    class equal_by_value;
+    class less_by_value;
+    class hash_by_value;
+
+    class equal_by_representation;
+    class less_by_representation;
+    class hash_by_representation;
+
     template <typename T>
       using default_markable = /* see below */;
 
@@ -104,6 +112,12 @@ namespace ak_toolkit
   using markable_ns::order_none;
   using markable_ns::order_by_representation;
   using markable_ns::order_by_value;
+  using markable_ns::equal_by_value;
+  using markable_ns::less_by_value;
+  using markable_ns::hash_by_value;
+  using markable_ns::equal_by_representation;
+  using markable_ns::less_by_representation;
+  using markable_ns::hash_by_representation;
   using markable_ns::default_markable;
   using markable_ns::with_representation;
   using markable_ns::with_representation_t;
@@ -422,6 +436,112 @@ public:
 *Remark:* If `l` or `r` (called `m` here) stores a value where
 `!m.has_value() && m.representation_value() != MP::marked_value()`
 the behavior is undefined.
+
+
+
+#### `equal_by_value`
+
+```c++
+class equal_by_value
+{
+public:
+  template <typename MP, typename OP>
+  auto operator()(const markable<MP, OP>& l, const markable<MP, OP>& r) const
+    -> decltype(l.value() == r.value())
+    {
+      return !l.has_value() ? !r.has_value() : r.has_value() && l.value() == r.value();
+    }
+};
+```
+
+#### `less_by_value`
+
+```c++
+class less_by_value
+{
+public:
+  template <typename MP, typename OP>
+  auto operator()(const markable<MP, OP>& l, const markable<MP, OP>& r) const
+    -> decltype(l.value() < r.value())
+    {
+      return !r.has_value() ? false : (!l.has_value() ? true : l.value() < r.value());
+    }
+};
+```
+
+#### `hash_by_value`
+
+```c++
+struct hash_by_value
+{
+  template <typename MP, typename OP>
+  constexpr typename std::hash<typename MP::value_type>::result_type
+  operator()(markable<MP, OP> const& arg) const {
+    return arg.has_value() ? std::hash<typename MP::value_type>{}(arg.value())
+                           : typename std::hash<typename MP::value_type>::result_type{};
+  }
+};
+```
+
+#### `equal_by_representation`
+
+```c++
+class equal_by_representation
+{
+public:
+  template <typename MP, typename OP>
+  auto operator()(const markable<MP, OP>& l, const markable<MP, OP>& r) const
+    -> decltype(l.representation_value() == r.representation_value())
+    {
+      assert(unique_marked_value(l));
+      assert(unique_marked_value(r));
+      return l.representation_value() == r.representation_value();
+    }
+};
+```
+
+*Remark:* If `l` or `r` (called `m` here) stores a value where
+`!m.has_value() && m.representation_value() != MP::marked_value()`
+the behavior is undefined.
+
+#### `less_by_representation`
+
+```c++
+class less_by_representation
+{
+public:
+  template <typename MP, typename OP>
+  auto operator()(const markable<MP, OP>& l, const markable<MP, OP>& r) const
+    -> decltype(l.representation_value() < r.representation_value())
+    {
+      return l.representation_value() < r.representation_value();
+    }
+};
+```
+
+*Remark:* If `l` or `r` (called `m` here) stores a value where
+`!m.has_value() && m.representation_value() != MP::marked_value()`
+the behavior is undefined.
+
+#### `hash_by_representation`
+
+```c++
+class hash_by_representation
+{
+public:
+  template <typename MP, typename OP>
+  constexpr typename std::hash<typename MP::representation_type>::result_type
+  operator()(markable<MP, OP> const& arg) const {
+    return std::hash<typename MP::representation_type>{}(arg.representation_value());
+  }
+};
+```
+
+*Remark:* If `l` or `r` (called `m` here) stores a value where
+`!m.has_value() && m.representation_value() != MP::marked_value()`
+the behavior is undefined.
+
+
 
 
 ### Exception safety
