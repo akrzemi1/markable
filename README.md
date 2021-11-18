@@ -65,6 +65,9 @@ typedef markable<mark_bool> opt_bool;
 static_assert (sizeof(opt_bool) == 1, "");
 ```
 
+For a more comprehensive overview of the library see [documentation/overview.adoc](documentation/overview.adoc).
+
+
 For additional motivation and overview see this post: https://akrzemi1.wordpress.com/2015/07/15/efficient-optional-values/.
 
 
@@ -83,4 +86,4 @@ Distributed under the [Boost Software License, Version 1.0](http://www.boost.org
 
 ***
 
-_&copy; 2015 &mdash; 2020 Andrzej Krzemie&#324;ski_
+_&copy; 2015 &mdash; 2021 Andrzej Krzemie&#324;ski_
