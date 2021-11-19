@@ -67,6 +67,8 @@ static_assert (sizeof(opt_bool) == 1, "");
 
 For a more comprehensive overview of the library see [documentation/overview.adoc](documentation/overview.adoc).
 
+For a list of "how do I do X with this library" questions
+see [documentation/how_do_i_do_x.adoc](documentation/how_do_i_do_x.adoc).
 
 For additional motivation and overview see this post: https://akrzemi1.wordpress.com/2015/07/15/efficient-optional-values/.
 
