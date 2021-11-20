@@ -8,6 +8,7 @@
 #define AK_TOOLBOX_COMPACT_OPTIONAL_HEADER_GUARD_
 
 #include <cassert>
+#include <functional>
 #include <utility>
 #include <limits>
 #include <new>
