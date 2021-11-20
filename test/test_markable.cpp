@@ -4,9 +4,6 @@
 // License, Version 1.0. (See accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
 
-// TODO: deleteme
-#include <iostream>
-
 #include "../include/ak_toolkit/markable.hpp"
 #include <cassert>
 #include <utility>
@@ -187,6 +184,25 @@ void test_mark_value_init()
     assert (o1.representation_value() == "one");
     assert (oE.representation_value() == "");
   }
+}
+
+void test_true_or_novalue()
+{
+  using flag = markable<mark_int<bool, false>>;
+  flag off_{}, false_{false}, true_{true};
+
+  assert (!off_.has_value());
+  assert (!false_.has_value());
+  assert (true_.has_value());
+
+  assert(equal_by_value{}(off_, false_));
+  assert(equal_by_representation{}(off_, false_));
+
+  flag f;
+  f.assign_representation(false);
+  assert (!f.has_value());
+  bool b = f.representation_value();
+  assert(!b);
 }
 
 int objects_created = 0;
@@ -1162,6 +1178,7 @@ int main()
   test_mark_value_init();
   test_mark_stl_empty();
   test_mark_enum();
+  test_true_or_novalue();
   test_order_by_representation();
   test_order_by_value();
 
