@@ -747,7 +747,7 @@ using markable_ns::mark_policy;
 
 static_assert(mark_policy<mark_bool>, "mark_policy test failed");
 static_assert(mark_policy<mark_int<int, 0>>, "mark_policy test failed");
-static_assert(mark_policy<mark_fp_nan<float>>, "m     ark_policy test failed");
+static_assert(mark_policy<mark_fp_nan<float>>, "mark_policy test failed");
 static_assert(mark_policy<mark_value_init<int>>, "mark_policy test failed");
 
 # endif
