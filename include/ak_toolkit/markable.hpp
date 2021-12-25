@@ -19,7 +19,7 @@
 #include <concepts>
 # endif
 
-#if defined AK_TOOLBOX_NO_ARVANCED_CXX11
+#if defined AK_TOOLBOX_NO_ADVANCED_CXX11
 #  define AK_TOOLKIT_NOEXCEPT
 #  define AK_TOOLKIT_IS_NOEXCEPT(E) true
 #  define AK_TOOLKIT_CONSTEXPR
@@ -401,9 +401,9 @@ struct markable_dual_storage_type_unsafe
   static_assert(sizeof(T) == sizeof(REP_T), "representation of T has to have the same size and alignment as T");
   static_assert(std::is_standard_layout<T>::value, "T must be a Standard Layout type");
   static_assert(std::is_standard_layout<REP_T>::value, "representation of T must be a Standard Layout type");
-#ifndef AK_TOOLBOX_NO_ARVANCED_CXX11
+#ifndef AK_TOOLBOX_NO_ADVANCED_CXX11
   static_assert(alignof(T) == alignof(REP_T), "representation of T has to have the same alignment as T");
-#endif // AK_TOOLBOX_NO_ARVANCED_CXX11
+#endif // AK_TOOLBOX_NO_ADVANCED_CXX11
 
   // TODO: in C++20: static_assert(std::is_layout_compatible_v<T, REP_T>, "representation of T has to be layout-compatible with T");
 
